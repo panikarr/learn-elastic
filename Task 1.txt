@@ -1,0 +1,87 @@
+Task 1:
+
+----------------------------
+Task 1
+You are designing an Elasticsearch index for storing book records in a small library.
+Each book has:
+Title
+Author name
+Year of publication
+Genre (e.g., “Fiction”, “Science”, “Philosophy”)
+👉 Your goals:
+Design an index mapping for storing this data.
+Write a query to find all books published after 2010 in the "Science" genre.
+----------------------------
+
+
+
+Solution:
+
+PUT books
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text", // analysed text for normal search
+        "fields": {
+          "raw": {
+            "type": "keyword" //for exact search
+          }
+        }
+      },
+      "author_name": {
+        "type": "keyword"
+      },
+      "pubyr": {
+        "type": "short"
+      },
+      "genre": {
+        "type": "keyword" //for exact search
+      }
+    }
+  }
+}
+
+POST books/_bulk
+{"index":{"_index":"books"}}
+{"title":"3body problem","author_name":"xi","pubyr":2024,"genre":"Science"}
+{"index":{"_index":"books"}}
+{"title":"happy potter","author_name":"jkr","pubyr":2008,"genre":"Fiction"}
+{"index":{"_index":"books"}}
+{"title":"loki","author_name":"loki author","pubyr":2025,"genre":"Children"}
+{"index":{"_index":"books"}}
+{"title":"philo","author_name":"philo author","pubyr":2011,"genre":"Philosophy"}
+{"index":{"_index":"books"}}
+{"title":"starwars","author_name":"starwar-author","pubyr":2000,"genre":"Science"}
+
+//more efficient as it is exact match and should not impact scoring. Caching is applicable
+POST books/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "genre": "Science"
+          }
+        },
+        {
+          "range": {
+            "pubyr": {
+              "gte": 2010
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+POST books/_search
+{
+  "query": {
+    "match": {
+      "title.raw": "3body problem"
+    }
+  }
+}
