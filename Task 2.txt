@@ -1,0 +1,137 @@
+Task 2: Nested Reviews
+Scenario:
+We’re extending the books index. Each book can have multiple reviews. Each review has:
+reviewer (string)
+rating (integer, 1–5)
+comment (text)
+🎯 Your goals
+Create an index mapping for books that includes a reviews field as nested.
+(Hint: nested is important so queries correctly match reviewer + rating + comment together, not across different reviews.)
+Insert some sample books with at least 2 reviews each (make sure at least one book has a review with rating = 5).
+Write a query to find all books that have at least one review with a rating of 5.
+
+-----------------------------------
+
+Solution:
+
+PUT books
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword" 
+          }
+        }
+      },
+      "author_name": {
+        "type": "keyword"
+      },
+      "pubyr": {
+        "type": "short"
+      },
+      "genre": {
+        "type": "keyword" 
+      },
+      "reviews":{
+      	"type": "nested",
+      	"properties": {
+      	  "reviewer":{
+      	    "type": "keyword"
+      	  },
+      	  "rating":{
+      	    "type": "short"
+      	  },
+      	  "comment":{
+      	    "type": "text"
+      	  }
+      	}
+      }
+    }
+  }
+}
+
+POST books/_bulk
+{"index":{"_index":"books"}}
+{"title":"3body problem","author_name":"xi","pubyr":2024,"genre":"Science", "reviews": [{"reviewer":"renjith", "rating":5, "comment":"Good read"}, {"reviewer":"saarang", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"happy potter","author_name":"jkr","pubyr":2008,"genre":"Fiction", "reviews": [{"reviewer":"saarang", "rating":1, "comment":"Bad read"}, {"reviewer":"renjith", "rating":4, "comment":"Good read"}]}
+{"index":{"_index":"books"}}
+{"title":"loki","author_name":"loki author","pubyr":2025,"genre":"Children", "reviews": [{"reviewer":"nitu", "rating":3, "comment":"Ok read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"philo","author_name":"philo author","pubyr":2011,"genre":"Philosophy", "reviews": [{"reviewer":"renjith", "rating":2, "comment":"Ok read"}, {"reviewer":"saarang", "rating":3, "comment":"Ok read"}]}
+{"index":{"_index":"books"}}
+{"title":"starwars","author_name":"starwar-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":5, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+
+
+
+POST books/_search
+{
+  "query": {
+    "nested": {
+      "path": "reviews",
+      "query": {
+        "bool": {
+          "filter": [
+            {
+              "term": {
+                "reviews.rating": {
+                  "value": 5
+                }
+              }
+            }
+            ]
+        }
+        
+      },
+      "inner_hits": {} //to get only the review with rating 5
+    }
+  }
+}
+
+
+
+
+
+-------------
+If not nested,
+
+this doc
+
+{
+  "group" : "fans",
+  "user" : [
+    {
+      "first" : "John",
+      "last" :  "Smith"
+    },
+    {
+      "first" : "Alice",
+      "last" :  "White"
+    }
+  ]
+}
+
+will be interpreted as
+
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "user.first": "Alice" }},
+        { "match": { "user.last":  "Smith" }}
+      ]
+    }
+  }
+}
+
+missing the relation betwee John & Smith and Alice & White.
+
+
+
+
+
+
+
