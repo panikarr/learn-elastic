@@ -1,0 +1,120 @@
+Task 4
+You have the books index with nested reviews.
+You want to find statistics for Science books.
+Requirements
+Only look at books where genre = "Science".
+For each book, look at its reviews (nested objects):
+Compute average rating of all reviews.
+Count how many reviews have rating >= 4.
+Return results per book (you’ll see the book title, avg rating, and count of high-rated reviews).
+
+---
+PUT books
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          }
+        }
+      },
+      "author_name": {
+        "type": "keyword"
+      },
+      "pubyr": {
+        "type": "short"
+      },
+      "genre": {
+        "type": "keyword"
+      },
+      "reviews":{
+      	"type": "nested",
+      	"properties": {
+      	  "reviewer":{
+      	    "type": "keyword"
+      	  },
+      	  "rating":{
+      	    "type": "short"
+      	  },
+      	  "comment":{
+      	    "type": "text"
+      	  }
+      	}
+      }
+    }
+  }
+}
+
+POST books/_bulk
+{"index":{"_index":"books"}}
+{"title":"3body problem","author_name":"xi","pubyr":2024,"genre":"Science", "reviews": [{"reviewer":"renjith", "rating":5, "comment":"Good read"}, {"reviewer":"saarang", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"happy potter","author_name":"jkr","pubyr":2008,"genre":"Fiction", "reviews": [{"reviewer":"saarang", "rating":1, "comment":"Bad read"}, {"reviewer":"renjith", "rating":4, "comment":"Good read"}]}
+{"index":{"_index":"books"}}
+{"title":"loki","author_name":"loki author","pubyr":2025,"genre":"Children", "reviews": [{"reviewer":"nitu", "rating":3, "comment":"Ok read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"philo","author_name":"philo author","pubyr":2011,"genre":"Philosophy", "reviews": [{"reviewer":"renjith", "rating":2, "comment":"Ok read"}, {"reviewer":"saarang", "rating":3, "comment":"Ok read"}]}
+{"index":{"_index":"books"}}
+{"title":"starwars","author_name":"starwar-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":5, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"black hole","author_name":"bh-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":3, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+
+
+//solution
+POST books/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "genre": "Science"
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "books_bucket": {
+      "terms": {
+        "field": "title.raw"
+      },
+      "aggs": {
+        "reviews_agg": {
+          "nested": {
+            "path": "reviews"
+          },
+          "aggs": {
+            "rating_avg": {
+              "avg": {
+                "field": "reviews.rating"
+              }
+            },
+            "rating_gte_4": {
+              "filter": {
+                "range": {
+                  "reviews.rating": {
+                    "gte": 4
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Explanation:
+Filter - will filter books with genre  = "Science"
+Terms agg - will create buckets for each book title
+Nested agg - will go into reviews nested field
+Avg agg - will calculate average rating of all reviews for each book
+Filter agg - will count how many reviews have rating >= 4 for each book
+
+
+
