@@ -94,6 +94,47 @@ POST books/_search
 }
 
 
+//A better version using boolean in nested if we want to combine multiple conditions
+POST books/_search
+{
+  "_source": {
+    "includes": [
+      "inner_hits"
+    ]
+  },
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "genre": "Science"
+          }
+        },
+        {
+          "nested": {
+            "path": "reviews",
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "reviews.rating": {
+                        "gte": 4
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "inner_hits": {}
+          }
+        }
+      ]
+    }
+  }
+}
+
+
 Explanation: It is a query with 2 filter conditions
 - Filter genre = Science
 - Filter reviews.rating > 4
