@@ -1,0 +1,133 @@
+🧩 Task 5 — Pipeline Aggregation Challenge
+🎯 Goal (plain English)
+From the books index:
+Look only at Science books
+Group results per book
+For each book:
+Calculate average review rating
+Count how many reviews have rating ≥ 4
+Exclude books that have 0 reviews with rating ≥ 4
+Sort books by average rating (highest first)
+Return only aggregation results (no hits)
+🔧 Constraints (important)
+Reviews are nested
+Filtering on rating ≥ 4 must happen inside nested aggregation
+Removing books with 0 high-rated reviews must happen after aggregation
+You must use a pipeline aggregation to drop buckets
+
+---
+PUT books
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          }
+        }
+      },
+      "author_name": {
+        "type": "keyword"
+      },
+      "pubyr": {
+        "type": "short"
+      },
+      "genre": {
+        "type": "keyword"
+      },
+      "reviews":{
+      	"type": "nested",
+      	"properties": {
+      	  "reviewer":{
+      	    "type": "keyword"
+      	  },
+      	  "rating":{
+      	    "type": "short"
+      	  },
+      	  "comment":{
+      	    "type": "text"
+      	  }
+      	}
+      }
+    }
+  }
+}
+
+POST books/_bulk
+{"index":{"_index":"books"}}
+{"title":"3body problem","author_name":"xi","pubyr":2024,"genre":"Science", "reviews": [{"reviewer":"renjith", "rating":5, "comment":"Good read"}, {"reviewer":"saarang", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"happy potter","author_name":"jkr","pubyr":2008,"genre":"Fiction", "reviews": [{"reviewer":"saarang", "rating":1, "comment":"Bad read"}, {"reviewer":"renjith", "rating":4, "comment":"Good read"}]}
+{"index":{"_index":"books"}}
+{"title":"loki","author_name":"loki author","pubyr":2025,"genre":"Children", "reviews": [{"reviewer":"nitu", "rating":3, "comment":"Ok read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"philo","author_name":"philo author","pubyr":2011,"genre":"Philosophy", "reviews": [{"reviewer":"renjith", "rating":2, "comment":"Ok read"}, {"reviewer":"saarang", "rating":3, "comment":"Ok read"}]}
+{"index":{"_index":"books"}}
+{"title":"starwars","author_name":"starwar-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":5, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"black hole","author_name":"bh-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":3, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+
+//solution ---
+
+POST books/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "genre": "Science"
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "books_agg": {
+      "terms": {
+        "field": "title.raw"
+      },
+      "aggs": {
+        "nested_book_rating_agg": {
+          "nested": {
+            "path": "reviews"
+          },
+          "aggs": {
+            "avg_rating_agg": {
+              "avg": {
+                "field": "reviews.rating"
+              }
+            },
+            "highly_rated_agg": {
+              "filter": {
+                "range": {
+                  "reviews.rating": {
+                    "gte": 4
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rating_based_filter": {
+          "bucket_selector": {
+            "buckets_path": {
+              "high": "nested_book_rating_agg>highly_rated_agg._count"
+            },
+            "script": "params.high > 0"
+          }
+        }
+      }
+    }
+  }
+}
+
+Explanation:
+Filter - will filter books with genre  = "Science"
+Terms agg - will create buckets for each book title
+Nested agg - will go into reviews nested field
+Avg agg - will calculate average rating of all reviews for each book
+Filter agg - will count how many reviews have rating >= 4 for each book
+Bucket selector - will remove books which have 0 reviews with rating >= 4
