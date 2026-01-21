@@ -1,0 +1,121 @@
+🎯 Task 7 Challenge
+Goal
+Find reviewers who have written high-rated reviews
+and then return information about the books they reviewed.
+Exact requirements
+Look at reviews (nested docs)
+Consider only reviews where:
+rating >= 4
+Group results by:
+reviews.reviewer
+For each reviewer:
+Return the number of high-rated reviews
+Return the titles of the books they reviewed with rating ≥ 4
+❗ Important constraints
+You must start from the reviews nested context
+You must come back to the parent (books) level
+You must not denormalize data
+Aggregations only (no hits needed)
+
+---
+PUT books
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          }
+        }
+      },
+      "author_name": {
+        "type": "keyword"
+      },
+      "pubyr": {
+        "type": "short"
+      },
+      "genre": {
+        "type": "keyword"
+      },
+      "reviews":{
+      	"type": "nested",
+      	"properties": {
+      	  "reviewer":{
+      	    "type": "keyword"
+      	  },
+      	  "rating":{
+      	    "type": "short"
+      	  },
+      	  "comment":{
+      	    "type": "text"
+      	  }
+      	}
+      }
+    }
+  }
+}
+
+POST books/_bulk
+{"index":{"_index":"books"}}
+{"title":"3body problem","author_name":"xi","pubyr":2024,"genre":"Science", "reviews": [{"reviewer":"renjith", "rating":5, "comment":"Good read"}, {"reviewer":"saarang", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"happy potter","author_name":"jkr","pubyr":2008,"genre":"Fiction", "reviews": [{"reviewer":"saarang", "rating":1, "comment":"Bad read"}, {"reviewer":"renjith", "rating":4, "comment":"Good read"}]}
+{"index":{"_index":"books"}}
+{"title":"loki","author_name":"loki author","pubyr":2025,"genre":"Children", "reviews": [{"reviewer":"nitu", "rating":3, "comment":"Ok read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"philo","author_name":"philo author","pubyr":2011,"genre":"Philosophy", "reviews": [{"reviewer":"renjith", "rating":2, "comment":"Ok read"}, {"reviewer":"saarang", "rating":3, "comment":"Ok read"}]}
+{"index":{"_index":"books"}}
+{"title":"starwars","author_name":"starwar-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":5, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+{"index":{"_index":"books"}}
+{"title":"black hole","author_name":"bh-author","pubyr":2000,"genre":"Science", "reviews": [{"reviewer":"saarang", "rating":3, "comment":"Good read"}, {"reviewer":"renjith", "rating":1, "comment":"Bad read"}]}
+
+//solution ---
+POST books/_search
+{
+  "aggs": {
+    "reviews_nested": {
+      "nested": {
+        "path": "reviews"
+      },
+      "aggs": {
+        "high_rated_reviews": {
+          "filter": {
+            "range": {
+              "reviews.rating": {
+                "gte": 4
+              }
+            }
+          },
+          "aggs": {
+            "reviewer_bucket": {
+              "terms": {
+                "field": "reviews.reviewer"
+              },
+              "aggs": {
+                "back_to_book": {
+                  "reverse_nested": {},
+                  "aggs": {
+                    "books": {
+                      "terms": {
+                        "field": "title.raw"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Explanation:
+1. We start with a nested aggregation on the "reviews" path to access the nested review documents.
+2. We apply a filter aggregation to consider only reviews with a rating of 4 or higher.
+3. Within the filtered reviews, we create a terms aggregation on "reviews.reviewer" to group the results by reviewer.
+4. For each reviewer, we use a reverse_nested aggregation to go back to the parent book level.
+5. Finally, we create a terms aggregation on "title.raw" to get the titles of the books reviewed by each reviewer with high ratings.
