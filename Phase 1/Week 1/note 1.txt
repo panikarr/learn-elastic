@@ -1,0 +1,113 @@
+Elasticsearch is NOT:
+    a relational database
+    a JSON processor
+Elasticsearch IS:
+    A document-based, inverted-index engine with analytics on top.
+
+
+Index
+    Roughly comparable to a database
+    Physically split into shards
+
+Document
+The atomic unit
+    Elasticsearch never partially loads a document
+    Queries & aggregations always operate on documents
+
+Field
+    How data is indexed and stored
+    Field type controls:
+    how it’s searched
+    how it’s aggregated
+    how much memory it uses
+📌 Key rule
+If you misunderstand the field type, your query will silently lie to you.
+
+text
+    Analyzed (tokenized)
+    Used for full-text search
+    ❌ Cannot aggregate (by default)
+    ❌ Sorting is expensive
+
+    text is analysed
+    Using it for aggregations or exact grouping is wrong
+    You can filter on a text field:
+        it’s just unreliable and expensive
+        token-based, not exact
+        depends on analyzer
+
+keyword
+    Not analyzed
+    Exact value
+    ✅ Perfect for aggregations
+    ✅ Sorting & filtering
+
+    The real reason aggregations work is:
+        keyword fields have doc_values enabled by default
+        Aggregations read from doc_values, not _source
+
+Best Practice:
+    Multi-fields
+        "name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        }
+        Now:
+        name → full-text search
+        name.keyword → aggregations / filters
+
+Arrays of objects (DANGEROUS)
+     "items": [
+       { "product": "Laptop", "price": 1000 },
+       { "product": "Mouse", "price": 20 }
+     ]
+     If mapped normally, Elasticsearch flattens this internally.
+     This query:
+     product = Laptop AND price = 20    ==> this can give results from 2 elements od the array
+     ❌ CAN MATCH — incorrectly
+
+[Solution]nested — why it exists
+      To preserve object boundaries.
+      "items": {
+        "type": "nested",
+        "properties": {
+          "product": { "type": "keyword" },
+          "price": { "type": "double" }
+        }
+      }
+      Now:
+      each object is indexed separately
+      queries and aggs are correct
+      cost is higher (worth it)
+      📌 Rule
+      If it’s an array of objects and fields must stay together → nested
+      product = Laptop AND price = 20 --> wont yield any results now
+
+What Elasticsearch does by default
+    Sees new fields
+    Automatically assigns types
+Why this is risky
+    Strings default to text
+    Aggregations break later
+    Field explosion kills memory
+Production habit
+    Use explicit mappings
+    Or templates
+
+Feature	            Depends on mapping
+---------------------------------------
+Aggregations	    keyword / numeric fields
+Nested aggs	        nested type
+Queries	            analyzer + field type
+Performance	        doc_values
+kNN	                dense_vector
+Reindexing	        mapping correctness
+
+
+
+
+

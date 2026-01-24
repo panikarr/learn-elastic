@@ -1,0 +1,65 @@
+_source & doc_values
+--------------------
+
+What _source really is (and is NOT)
+    The original JSON document
+    Stored as-is (compressed)
+    Returned in search responses
+    Used for:
+        debugging
+        reindexing
+        updates
+        partial document retrieval
+    📌 Key truth
+    _source is NOT used for searching or aggregations.
+
+
+
+What doc_values really are (this is critical)
+    Column-oriented storage
+    Built at index time
+    Used by:
+        aggregations
+        sorting
+        scripted metrics
+    Example:
+        "status": {
+          "type": "keyword"
+        }
+    Internally:
+        doc_id → status
+        1 → SUCCESS
+        2 → FAILED
+    Aggregations read this, not _source.
+    📌 Mental rule:  ###************************###
+        Aggregations = doc_values  [off-heap]
+        Search = inverted index [heap]
+        Retrieval = _source
+       Three different storage paths.
+
+Why text fields break aggregations
+    text fields:
+     have no doc_values
+     store tokens in inverted index
+    That’s why:
+     terms aggregation fails
+     sorting is disabled
+    This is by design, not a limitation.
+
+Field explosion & memory (why this matters later)
+    Every field with doc_values:
+        consumes disk
+        consumes off-heap memory
+        affects aggregation speed
+    Bad mapping = slow cluster.
+
+
+Feature	    keyword	        text + fielddata
+Storage	    doc_values	    inverted index → heap
+Built	    index time	    query time
+Memory	    OS cache	    JVM heap
+GC impact	none	        severe
+Safety	    safe	        risky
+
+
+

@@ -1,0 +1,40 @@
+Filtering vs Query Context + Aggregations
+-------------------------------------------
+
+Query context answers “how well?”
+Filter context answers “yes or no?”
+
+Aggregations love filter context.
+
+Query context (scoring involved)
+    "must": [
+      { "match": { "message": "error" } }
+    ]
+    scoring
+    relevance calculation
+    slower
+    not cached
+    Use when:
+        full-text search
+        ranking matters
+
+Filter context (no scoring)
+    "filter": [
+      { "term": { "status.keyword": "FAILED" } }
+    ]
+    yes/no
+    fast
+    cacheable
+    ideal for aggregations
+    📌 Production rule
+        If a condition doesn’t affect relevance → use filter
+
+Why this matters for aggregations
+    Aggregations run:
+        AFTER filters
+        BEFORE _source
+        So:
+            smaller result set
+            fewer doc_values scans
+            faster aggs
+
