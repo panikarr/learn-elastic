@@ -1,0 +1,315 @@
+term query → Exact match (NO analysis)
+==========
+    Used on:
+        keyword
+        numbers
+        booleans
+        IDs
+            {
+              "term": {
+                "status.keyword": "FAILED"
+              }
+            }
+
+    ✔ Exact value
+    ✔ Case-sensitive (usually)
+    ❌ No tokenization
+    📌 Use when value must match exactly.
+
+match query → Full-text search (ANALYZED)
+===========
+    Used on: text fields
+           {
+              "match": {
+                "message": "database error"
+              }
+            }
+    What ES really searches: ["database", "error"]
+
+    ✔ Order doesn’t matter
+    ✔ Words can appear anywhere
+    ✔ Scoring applies
+
+match_phrase → Exact phrase in order
+===========
+    Used on:  text fields
+    {
+      "match_phrase": {
+        "message": "database error"
+      }
+    }
+    Matches:
+    ✔ "database error occurred"
+    ❌ "error in database"
+
+    Order matters. Tokens must be adjacent (unless slop is used).
+
+Range Query
+===========
+    Used for:
+        numbers
+        dates
+        timestamps
+            {
+              "range": {
+                "@timestamp": {
+                  "gte": "now-1h",
+                  "lte": "now"
+                }
+              }
+            }
+    Other operators:
+    gt → greater than
+    gte → greater than or equal
+    lt → less than
+    lte → less than or equal
+    📌 Always used in filter context unless it affects scoring (rare).
+
+Exists Query
+    Find documents where a field is present.
+        {
+          "exists": {
+            "field": "error_code"
+          }
+        }
+    Matches if:
+        field exists in _source
+        not null
+        not empty array
+    Great for:
+        data quality checks
+        “missing field” debugging
+
+
+
+
+
+TASKS
+-----
+1️⃣ Order Status
+Example values:
+"PLACED", "SHIPPED", "DELIVERED", "CANCELLED"
+You want to:
+filter by status
+aggregate count by status
+👉 Mapping?
+
+PUT /order_status
+{
+    "mapping":{
+        "properties":{
+            "status":{
+                "type":"keyword"
+            }
+        }
+    }
+}
+
+
+
+2️⃣ Product Description
+Example:
+"Lightweight waterproof hiking backpack"
+You want to:
+search by words
+support phrase search "waterproof backpack"
+👉 Mapping?
+
+PUT /product
+{
+    "mapping":{
+        "properties":{
+            "description":{
+                "type":"text"
+            }
+        }
+    }
+}
+
+
+3️⃣ User Email
+Example:
+"john.doe@gmail.com"
+You want to:
+filter exact email
+sometimes find all emails starting with "john"
+👉 Mapping?
+
+PUT /emails
+{
+    "mapping":{
+        "properties":{
+            "email":{
+                "type": "text",
+                "fields":{
+                    "keyword":{
+                        "type": "keyword"
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+4️⃣ Price
+Example:
+1999.99
+You want to:
+filter price ranges
+average price aggregation
+👉 Mapping?
+
+PUT /prices
+{
+    "mapping":{
+        "properties":{
+            "price":{
+                "type": "scaled_float"
+            }
+        }
+    }
+}
+
+
+5️⃣ Log Message
+Example:
+"Database connection timeout after 30 seconds"
+You want to:
+full-text search
+phrase match "connection timeout"
+👉 Mapping?
+
+PUT /log_message
+{
+    "mapping":{
+        "properties":{
+            "message":{
+                "type": "text"
+            }
+        }
+    }
+}
+
+6️⃣ Tags Array
+Example:
+"tags": ["production", "api", "payment"]
+You want to:
+filter logs that contain "api"
+aggregate most common tags
+👉 Mapping?
+
+PUT /tags
+{
+    "mapping":{
+        "properties":{
+            "tags":{
+                "type": "keyword"
+            }
+        }
+    }
+}
+
+
+7️⃣ User Addresses (multiple per user)
+Example:
+"addresses": [
+  { "city": "London", "zip": "E1 6AN" },
+  { "city": "Paris", "zip": "75001" }
+]
+You want to:
+find users where city=London AND zip=E1 6AN
+👉 Mapping?
+
+
+PUT /address
+{
+    "mapping": {
+        "properties":{
+
+            "addresses": {
+                "type": "nested",
+                "properties":{
+                    "city": {
+                        "type" : "keyword"
+                    },
+                    "zip": {
+                        "type": "keyword"
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+
+8️⃣ Timestamp
+Example:
+"2026-01-26T10:15:30Z"
+You want to:
+filter last 24 hours
+date histogram aggregation
+👉 Mapping?
+
+
+PUT /time
+{
+    "mapping":{
+        "properties":{
+            "updated_time": {
+                "type": "date"
+            }
+        }
+    }
+}
+
+
+9️⃣ HTTP Status Code
+Example:
+200, 404, 500
+You want to:
+filter errors (>=400)
+aggregate counts per code
+👉 Mapping?
+
+PUT http_status
+{
+    "mapping": {
+        "properties": {
+            "status_code" : {
+                "type": "integer"
+            }
+        }
+    }
+}
+
+
+🔟 Comment Text with Exact Filter
+Example:
+"This product is surprisingly good"
+You want to:
+full-text search
+filter exact duplicate comments
+👉 Mapping?
+
+PUT /comments
+{
+    "mapping": {
+        "properties": {
+            "comment": {
+                "type": "text",
+                "fields": {
+                    "keyword": {
+                        "type": "keyword"
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
