@@ -1,0 +1,255 @@
+Tokenizers & Analyzers
+==========================
+
+1️⃣ The Processing Pipeline (Mental Model)
+    Every text field goes through this exact pipeline:
+        Raw text
+          ↓
+        Character filters (optional)
+          ↓
+        Tokenizer (mandatory)
+          ↓
+        Token filters (0..n)
+          ↓
+        Indexed tokens
+    At query time, the same pipeline (or a different one) runs again.
+
+    📌 Golden Rule
+    If index-time and query-time analysis don’t “agree”, search breaks in subtle ways.
+
+
+2️⃣ Character Filters
+    These run before tokenization. They change the raw string.
+    Common ones
+        html_strip → removes HTML
+        mapping → replaces characters
+        Example
+            Text:
+                C++ Developer & DevOps
+                Mapping filter:
+                "+" → "plus"
+                "&" → "and"
+            Becomes:
+                Cplusplus Developer and DevOps
+        Then tokenization happens.
+    Use cases:
+        normalizing weird input
+        product SKUs
+        logs with symbols
+
+3️⃣ Tokenizers (The Heart of Everything)
+    A tokenizer decides:
+        What is a “word”?
+    Let’s go through the ones that matter in real systems.
+    🔹 standard (Default, Smart)
+        Splits on:
+            whitespace
+            punctuation
+            language rules
+        Text:
+            Quick-brown_fox@example.com
+        Tokens:
+            quick
+            brown_fox
+            example.com
+        Best for:
+            natural language
+            logs
+            descriptions
+
+    🔹 whitespace
+        Splits ONLY on spaces.
+        Text:
+            quick-brown fox
+        Tokens:
+            quick-brown
+            fox
+        Use when:
+            you want to preserve punctuation
+            product codes
+            semi-structured text
+
+    🔹 keyword (Special, Dangerous if Misused)
+        Whole field = ONE token.
+        Text:
+            New York City
+        Token:
+            new york city
+        Use for:
+            IDs
+            tags
+            email
+            enums
+        This is basically how keyword fields behave internally.
+
+    🔹 pattern
+        Split using regex.
+        Example:
+            Split on non-alphanumeric:
+            [^a-zA-Z0-9]
+        Text:
+            ERR-404:DB_DOWN
+        Tokens:
+            ERR
+            404
+            DB
+            DOWN
+        Very powerful for:
+            logs
+            trace IDs
+            codes
+
+    🔹 edge_ngram (Autocomplete King)
+        Breaks words into prefixes.
+        Text:
+            search
+        Tokens:
+            s, se, sea, sear, searc, search
+        Use for:
+            search-as-you-type
+            suggestions
+        ⚠️ High index size, must be controlled.
+
+    🔹 ngram (Contains Search)
+        Breaks into chunks.
+        Text:
+            log
+        Tokens:
+            lo, og
+        Use for:
+            contains search
+            fuzzy-ish matching
+        ⚠️ Very heavy. Use carefully.
+
+4️⃣ Token Filters (Meaning Changers)
+    These run after tokenization.
+    🔹 lowercase
+        ERROR → error
+        Almost always use this.
+
+    🔹 stop
+        Removes common words:
+            the, is, at, on
+        Good for:
+            long text
+        Bad for:
+            exact phrase matching
+            legal / compliance text
+
+    🔹 stemmer
+        running → run
+        errors → error
+        Good for:
+            search engines
+        Bad for:
+            product names  [E.g., running shoes being stemmed to run shoes]
+            logs
+
+    🔹 synonym
+        This is enterprise-level power.
+        Example:
+            db, database, datastore
+        All become:
+            database
+        Now searching “db error” matches “database failure”.
+        ⚠️ Hard to maintain. Version your synonym lists. [lemmatisation file]
+
+----------
+
+🧠 What is an Analyzer? (Clear, No Jargon)
+    Simple definition
+        An analyzer is a named pipeline that tells Elasticsearch
+        how to turn raw text into searchable tokens.
+        It’s not one thing — it’s a combination of three things:
+    ************************************************************
+    * Analyzer = Character Filters + Tokenizer + Token Filters *
+    ************************************************************
+    Think of it like a recipe.
+
+    Why analyzers exist at all
+        Elasticsearch does NOT search raw text.
+        It searches tokens.
+        So when you index this:
+            "Database connection timeout"
+        Elasticsearch must first decide:
+            What are the “words”?
+            Should case matter?
+            Should “timeouts” match “timeout”?
+            Should “DB” match “database”?
+        The analyzer answers all of that.
+        The Full Flow (Mental Model)
+            Index time
+                Raw text
+                  ↓
+                Analyzer runs
+                  ↓
+                Tokens stored in inverted index
+            Query time
+                Search text
+                  ↓
+                Analyzer runs (same or overridden)
+                  ↓
+                Tokens matched against inverted index
+        📌 Golden Rule (repeat this to yourself):
+            Elasticsearch never matches raw text — it matches analyzed tokens.
+
+    What an analyzer contains (formally)
+        An analyzer has exactly one:
+            Tokenizer (mandatory)
+            And optionally:
+                0 or more character filters
+                0 or more token filters
+        So structurally:
+            "analyzer": {
+              "my_analyzer": {
+                "type": "custom",
+                "char_filter": [ ... ],
+                "tokenizer": "standard",
+                "filter": [ ... ]
+              }
+            }
+
+    Built-in analyzers (you’ve already been using them without realizing)
+        standard (default)
+        Pipeline:
+            (no char filters)
+            → standard tokenizer
+            → lowercase filter
+            → stop filter (depending on language)
+        That means when you write:
+            "type": "text", You are implicitly saying: “Use the standard analyzer”
+            we can override it if we want to by specifying a different analyzer. [E.g., "analyzer": "log_analyzer"]
+
+    So:
+        "message": {
+          "type": "text",
+          "analyzer": "log_analyzer"
+        }
+    Means:
+        This is text, and I want THIS recipe applied.
+
+
+    Concrete Example (Before / After)
+        Field
+            "message": {
+              "type": "text",
+              "analyzer": "standard"
+            }
+        Text:
+            "DB Error at Server-01"
+        Standard analyzer produces:
+            db
+            error
+            at
+            server-01
+        If you switch to a custom analyzer with synonyms:
+            db → database
+        Now tokens become: [removed "at" with stop filter, added synonym for "db"]
+            database
+            error
+            server-01
+        So a search for "database error" suddenly works.
+        That’s the power of the analyzer.
+
+
+
