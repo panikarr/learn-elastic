@@ -1,0 +1,18 @@
+Index-Time vs Query-Time Analysis
+=================================
+
+Elasticsearch is a two-phase system:
+    Phase 1 — Index-Time (Write Path)
+        This happens when a document is stored.
+        “How should this text be broken down and stored so it can be found later?”
+        Once stored, tokens cannot be changed without reindexing.
+    Phase 2 — Query-Time (Read Path)
+        This happens when you search.
+        “How should my search text be broken down so it matches what was stored?”
+        You can change how queries are analyzed anytime
+    The Golden Rule
+        If tokens don’t match between index-time and query-time → no results
+        If the analyzer is not specified at query time, the field’s index-time analyzer is used by default.
+
+
+

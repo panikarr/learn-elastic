@@ -1,0 +1,31 @@
+1️⃣ Whitespace Tokenizer
+    Splits text only on spaces — nothing else.
+    Use whitespace when symbols carry meaning and you don’t want them stripped.
+
+    Example
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": "whitespace",
+                "text": "ERROR[2025-01-28] /api/v1/users?id=123"
+            }
+         Response:
+            {
+              "tokens": [
+                {
+                  "token": "ERROR[2025-01-28]",
+                  "start_offset": 0,
+                  "end_offset": 17,
+                  "type": "word",
+                  "position": 0
+                },
+                {
+                  "token": "/api/v1/users?id=123",
+                  "start_offset": 18,
+                  "end_offset": 38,
+                  "type": "word",
+                  "position": 1
+                }
+              ]
+            }
+

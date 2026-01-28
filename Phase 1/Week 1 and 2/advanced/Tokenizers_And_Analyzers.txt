@@ -121,6 +121,8 @@ Tokenizers & Analyzers
             fuzzy-ish matching
         ⚠️ Very heavy. Use carefully.
 
+        //Practical Example: refer Tokenizers_Practical.txt
+
 4️⃣ Token Filters (Meaning Changers)
     These run after tokenization.
     🔹 lowercase
@@ -153,6 +155,7 @@ Tokenizers & Analyzers
             database
         Now searching “db error” matches “database failure”.
         ⚠️ Hard to maintain. Version your synonym lists. [lemmatisation file]
+
 
 ----------
 
