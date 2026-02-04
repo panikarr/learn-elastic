@@ -6,7 +6,8 @@ A senior-engineer-grade learning plan covering search fundamentals, aggregations
 
 ## Phase 1 – Core Mental Models (Weeks 1–3)
 
-### Week 1: Document Model & Mapping
+### Week 1: Document Model & Mapping ✅
+
 - Index vs document
 - Text vs keyword
 - Arrays vs nested objects
@@ -15,21 +16,19 @@ A senior-engineer-grade learning plan covering search fundamentals, aggregations
 
 ### Week 2: Query DSL Deep Dive
 - Bool query anatomy: must, filter, should, must_not
-- Query context vs filter context
-- Term vs match vs match_phrase
-- Range, exists
-- Scoring vs non-scoring queries
+- Query context vs filter context ✅
+- Term vs match vs match_phrase ✅
+- Range, exists ✅
+- Scoring vs non-scoring queries ✅
 ---
 # Advanced Week 1–2 Elasticsearch Deep Dive Plan
 
 This session focuses on mastering the missing and advanced topics from Week 1 & Week 2 in senior-engineer mode.
 
-
-
 ## Phase: Core Mental Models & Query DSL Advanced
 
 ### 1️⃣ Tokenizers & Analyzers (Week 1)
-- **Deep dive into tokenizers**: standard, whitespace, keyword, pattern, n-gram, edge n-gram.
+- **Deep dive into tokenizers**: standard, whitespace, keyword, pattern, n-gram, edge n-gram. ✅
 - **Filters**: lowercase, stop, asciifolding, stemmer, synonyms, custom filters.
 - **Custom analyzer creation**: combining tokenizer + filters.
 - **Index-time vs query-time analysis** and how it affects relevance.

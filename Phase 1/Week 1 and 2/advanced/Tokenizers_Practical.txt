@@ -29,3 +29,302 @@
               ]
             }
 
+2️⃣ Standard Tokenizer
+    What It Is?
+    This is the default tokenizer for most text fields.
+    It tries to split text like a human would read it.
+    Removes most punctuation and splits on spaces.
+
+    When to Use It?
+    Use the standard tokenizer for general-purpose text fields where you want to ignore punctuation.
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": "standard",
+                "text": "Learning \"elastic search\". Starring with tokenizers"
+            }
+
+        Response:
+            {
+              "tokens": [
+                {
+                  "token": "Learning",
+                  "start_offset": 0,
+                  "end_offset": 8,
+                  "type": "<ALPHANUM>",
+                  "position": 0
+                },
+                {
+                  "token": "elastic",
+                  "start_offset": 10,
+                  "end_offset": 17,
+                  "type": "<ALPHANUM>",
+                  "position": 1
+                },
+                {
+                  "token": "search",
+                  "start_offset": 18,
+                  "end_offset": 24,
+                  "type": "<ALPHANUM>",
+                  "position": 2
+                },
+                {
+                  "token": "Starring",
+                  "start_offset": 27,
+                  "end_offset": 35,
+                  "type": "<ALPHANUM>",
+                  "position": 3
+                },
+                {
+                  "token": "with",
+                  "start_offset": 36,
+                  "end_offset": 40,
+                  "type": "<ALPHANUM>",
+                  "position": 4
+                },
+                {
+                  "token": "tokenizers",
+                  "start_offset": 41,
+                  "end_offset": 51,
+                  "type": "<ALPHANUM>",
+                  "position": 5
+                }
+              ]
+            }
+
+3️⃣ Keyword Tokenizer
+    What It Is?
+    Does NOT split at all.
+    The whole field becomes one token.
+
+    When to Use It?
+    Use the keyword tokenizer for fields where you want to preserve the entire content as a single token
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": "keyword",
+                "text": "Renjith Ravindranatha Panikar"
+            }
+
+        Response:
+            {
+              "tokens": [
+                {
+                  "token": "Renjith Ravindranatha Panikar",
+                  "start_offset": 0,
+                  "end_offset": 29,
+                  "type": "word",
+                  "position": 0
+                }
+              ]
+            }
+
+4️⃣ Pattern Tokenizer — Senior-Level Deep Dive
+    🧠 What It Really Is
+        The pattern tokenizer splits text using a regular expression instead of language rules.
+
+        Think of it as:
+            “Cut the text wherever this regex matches.”
+            So you define the structure, not Elasticsearch.
+    🎯 When to Use It
+        Use the pattern tokenizer when you have specific delimiters or structures in your text that standard token tokenizers can’t handle.
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": {
+                    "type": "pattern",
+                    "pattern": "[^a-zA-Z0-9]+"
+                },
+                "text": "ERROR[500]: /api/v1/users?id=123"
+            }
+
+         Response:
+            {
+              "tokens": [
+                {
+                  "token": "ERROR",
+                  "start_offset": 0,
+                  "end_offset": 5,
+                  "type": "word",
+                  "position": 0
+                },
+                {
+                  "token": "500",
+                  "start_offset": 6,
+                  "end_offset": 9,
+                  "type": "word",
+                  "position": 1
+                },
+                {
+                  "token": "api",
+                  "start_offset": 13,
+                  "end_offset": 16,
+                  "type": "word",
+                  "position": 2
+                },
+                {
+                  "token": "v1",
+                  "start_offset": 17,
+                  "end_offset": 19,
+                  "type": "word",
+                  "position": 3
+                },
+                {
+                  "token": "users",
+                  "start_offset": 20,
+                  "end_offset": 25,
+                  "type": "word",
+                  "position": 4
+                },
+                {
+                  "token": "id",
+                  "start_offset": 26,
+                  "end_offset": 28,
+                  "type": "word",
+                  "position": 5
+                },
+                {
+                  "token": "123",
+                  "start_offset": 29,
+                  "end_offset": 32,
+                  "type": "word",
+                  "position": 6
+                }
+              ]
+            }
+
+            Now you can search:
+                500
+                users
+                v1
+                id
+                ERROR
+            In Elasticsearch, + usually doesn’t change the tokens you see — it changes how hard the regex engine has to work to get them.
+
+            Second Example:
+                POST /_analyze
+                {
+                    "tokenizer": {
+                        "type": "pattern",
+                        "pattern": "[/?&=]"
+                    },
+                    "text": "/api/v2/orders/987?status=FAILED&region=EU"
+                }
+
+                Response:
+                    {
+                      "tokens": [
+                        {
+                          "token": "api",
+                          "start_offset": 1,
+                          "end_offset": 4,
+                          "type": "word",
+                          "position": 0
+                        },
+                        {
+                          "token": "v2",
+                          "start_offset": 5,
+                          "end_offset": 7,
+                          "type": "word",
+                          "position": 1
+                        },
+                        {
+                          "token": "orders",
+                          "start_offset": 8,
+                          "end_offset": 14,
+                          "type": "word",
+                          "position": 2
+                        },
+                        {
+                          "token": "987",
+                          "start_offset": 15,
+                          "end_offset": 18,
+                          "type": "word",
+                          "position": 3
+                        },
+                        {
+                          "token": "status",
+                          "start_offset": 19,
+                          "end_offset": 25,
+                          "type": "word",
+                          "position": 4
+                        },
+                        {
+                          "token": "FAILED",
+                          "start_offset": 26,
+                          "end_offset": 32,
+                          "type": "word",
+                          "position": 5
+                        },
+                        {
+                          "token": "region",
+                          "start_offset": 33,
+                          "end_offset": 39,
+                          "type": "word",
+                          "position": 6
+                        },
+                        {
+                          "token": "EU",
+                          "start_offset": 40,
+                          "end_offset": 42,
+                          "type": "word",
+                          "position": 7
+                        }
+                      ]
+                    }
+
+            Now you can:
+                Aggregate by region
+                Search for FAILED
+                Filter by orders
+
+            Example 3:
+                Request:
+                    POST /_analyze
+                    {
+                        "tokenizer": "pattern",
+                        "text": "Renjith Ravindranatha Panikar"
+                    }
+
+                Response:
+                    {
+                      "tokens": [
+                        {
+                          "token": "Renjith",
+                          "start_offset": 0,
+                          "end_offset": 7,
+                          "type": "word",
+                          "position": 0
+                        },
+                        {
+                          "token": "Ravindranatha",
+                          "start_offset": 8,
+                          "end_offset": 22,
+                          "type": "word",
+                          "position": 1
+                        },
+                        {
+                          "token": "Panikar",
+                          "start_offset": 23,
+                          "end_offset": 30,
+                          "type": "word",
+                          "position": 2
+                        }
+                      ]
+                    }
+
+            Here, the pattern tokenizer used the default pattern (non-word characters) to split the full name into individual name tokens.
+
+
+
+
+
+
+
+
