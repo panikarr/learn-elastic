@@ -225,3 +225,135 @@
                     }
                   ]
                 }
+
+5️⃣ synonym filter
+
+    If configured well → search feels smart
+    If configured badly → search becomes unpredictable
+
+
+    🧠 What synonyms do
+        They make different words behave as the same.
+        Example:
+
+            laptop = notebook
+            movie = film
+            error = failure
+
+        So searching film finds documents with movie.
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+              "tokenizer": "standard",
+              "filter":[
+                "lowercase",
+                {
+                  "type": "synonym",
+                  "synonyms": [
+                    "film, movie, cinema, picture",
+                    "good, nice, interesting"
+                  ]
+                }
+              ],
+              "text": "movie was Good"
+            }
+        Response:
+            {
+              "tokens": [
+                {
+                  "token": "movie",
+                  "start_offset": 0,
+                  "end_offset": 5,
+                  "type": "<ALPHANUM>",
+                  "position": 0
+                },
+                {
+                  "token": "film",
+                  "start_offset": 0,
+                  "end_offset": 5,
+                  "type": "SYNONYM",
+                  "position": 0
+                },
+                {
+                  "token": "cinema",
+                  "start_offset": 0,
+                  "end_offset": 5,
+                  "type": "SYNONYM",
+                  "position": 0
+                },
+                {
+                  "token": "picture",
+                  "start_offset": 0,
+                  "end_offset": 5,
+                  "type": "SYNONYM",
+                  "position": 0
+                },
+                {
+                  "token": "was",
+                  "start_offset": 6,
+                  "end_offset": 9,
+                  "type": "<ALPHANUM>",
+                  "position": 1
+                },
+                {
+                  "token": "good",
+                  "start_offset": 10,
+                  "end_offset": 14,
+                  "type": "<ALPHANUM>",
+                  "position": 2
+                },
+                {
+                  "token": "nice",
+                  "start_offset": 10,
+                  "end_offset": 14,
+                  "type": "SYNONYM",
+                  "position": 2
+                },
+                {
+                  "token": "interesting",
+                  "start_offset": 10,
+                  "end_offset": 14,
+                  "type": "SYNONYM",
+                  "position": 2
+                }
+              ]
+            }
+
+    Index-time vs Query-time synonyms
+
+        ❌ Index-time synonyms
+
+            Synonyms applied when indexing.
+            Problems:
+                Index becomes bigger
+                Hard to change later
+                Requires reindex
+                Can mess up scoring
+
+        ✅ Query-time synonyms (best practice)
+
+            Synonyms applied only during search.
+            Benefits:
+                Flexible
+                Change anytime
+                No reindex needed
+                Cleaner index
+
+            Use synonyms at query-time unless you have a strong reason not to.
+
+    🧠 Order matters!
+
+        Correct order:
+            → lowercase
+            → asciifolding
+            → stop
+            → stemmer
+            → synonyms
+
+        Why?
+        Synonyms must match processed tokens.
+
+
+lazy to learn custom filters :) . Let's do that later.
