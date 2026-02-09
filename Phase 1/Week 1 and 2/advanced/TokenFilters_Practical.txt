@@ -1,0 +1,227 @@
+1️⃣ lowercase filter
+    🧠 What it does
+        Converts all tokens to lowercase.
+        That’s it. But it’s critical.
+        Search is usually case-insensitive.
+        Without this filter, "Error" and "error" are different tokens.
+
+        Example:
+            Request:
+                POST /_analyze
+                {
+                    "tokenizer": {
+                      "type": "pattern",
+                      "pattern": "[.]"
+                    },
+                    "text": "Renjith. Ravindranatha Panikar",
+                    "filter":["lowercase"]
+                }
+            Reponse:
+                {
+                  "tokens": [
+                    {
+                      "token": "renjith",
+                      "start_offset": 0,
+                      "end_offset": 7,
+                      "type": "word",
+                      "position": 0
+                    },
+                    {
+                      "token": " ravindranatha panikar",
+                      "start_offset": 8,
+                      "end_offset": 30,
+                      "type": "word",
+                      "position": 1
+                    }
+                  ]
+                }
+
+2️⃣ asciifolding filter
+    🧠 What it does
+        Converts accented / Unicode characters → plain ASCII equivalents.
+            é → e
+            ö → o
+            ñ → n
+            ç → c
+
+        So searches work even if users don’t type accents.
+        Example:
+            Request:
+                POST /_analyze
+                {
+                    "tokenizer": "keyword",
+                    "text": "Café Coffeday",
+                    "filter":["asciifolding"]
+                }
+            Response:
+                {
+                  "tokens": [
+                    {
+                      "token": "Cafe Coffeday",
+                      "start_offset": 0,
+                      "end_offset": 13,
+                      "type": "word",
+                      "position": 0
+                    }
+                  ]
+                }
+
+3️⃣ stop filter
+    🧠 What it does
+        Removes very common words that usually don’t add meaning.
+
+    Examples:
+        the, is, a, an, of, to, in, and
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": "standard",
+                "text": "ElasticSearch is good",
+                "filter":["stop", "lowercase"]
+            }
+        Response:
+            {
+              "tokens": [
+                {
+                  "token": "elasticsearch",
+                  "start_offset": 0,
+                  "end_offset": 13,
+                  "type": "<ALPHANUM>",
+                  "position": 0
+                },
+                {
+                  "token": "good",
+                  "start_offset": 17,
+                  "end_offset": 21,
+                  "type": "<ALPHANUM>",
+                  "position": 2
+                }
+              ]
+            }
+
+        As you can see the "lowercase" is applied before the "stop" filter, so "is" becomes "is" and then is removed by the stop filter.
+
+        Custom stop words:
+            Request:
+                POST /_analyze
+                {
+                  "tokenizer": "whitespace",
+                  "text": "The Predaor, is a movie",
+                  "filter": [
+                    {
+                      "type": "stop",
+                      "stopwords": [
+                        "is",
+                        "a"
+                      ]
+                    }
+                  ]
+                }
+
+            Response:
+                {
+                  "tokens": [
+                    {
+                      "token": "The",
+                      "start_offset": 0,
+                      "end_offset": 3,
+                      "type": "<ALPHANUM>",
+                      "position": 0
+                    },
+                    {
+                      "token": "Predaor,",
+                      "start_offset": 4,
+                      "end_offset": 13,
+                      "type": "<ALPHANUM>",
+                      "position": 1
+                    },
+                    {
+                      "token": "movie",
+                      "start_offset": 22,
+                      "end_offset": 27,
+                      "type": "<ALPHANUM>",
+                      "position": 4
+                    }
+                  ]
+                }
+
+4️⃣ stemmer filter
+    This is where search starts becoming meaning-based, not word-based.
+
+    🧠 What a stemmer does
+        Reduces words to their root form.
+
+        run
+        running
+        runs
+        runner
+
+        All become:
+            run
+
+        So searching run matches documents with running.
+
+    Example:
+        Request:
+            POST /_analyze
+            {
+                "tokenizer": "standard",
+                "text": "Renjith running",
+                "filter":["stemmer"]
+            }
+
+        Response:
+            {
+              "tokens": [
+                {
+                  "token": "renjith",
+                  "start_offset": 0,
+                  "end_offset": 7,
+                  "type": "<ALPHANUM>",
+                  "position": 0
+                },
+                {
+                  "token": "run",
+                  "start_offset": 8,
+                  "end_offset": 15,
+                  "type": "<ALPHANUM>",
+                  "position": 1
+                }
+              ]
+            }
+
+        Example 2:
+            Request:
+                POST /_analyze
+                {
+                  "tokenizer": "standard",
+                  "text": "Renjith running",
+                  "filter": [
+                    "lowercase",
+                    {
+                      "type": "stemmer",
+                      "language": "english"
+                    }
+                  ]
+                }
+            Response:
+                {
+                  "tokens": [
+                    {
+                      "token": "renjith",
+                      "start_offset": 0,
+                      "end_offset": 7,
+                      "type": "<ALPHANUM>",
+                      "position": 0
+                    },
+                    {
+                      "token": "run",
+                      "start_offset": 8,
+                      "end_offset": 15,
+                      "type": "<ALPHANUM>",
+                      "position": 1
+                    }
+                  ]
+                }

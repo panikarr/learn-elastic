@@ -128,6 +128,31 @@ Tokenizers & Analyzers
     🔹 lowercase
         ERROR → error
         Almost always use this.
+        Lowercase usually comes before stopwords, stemming, synonyms.
+        ⚠️ When NOT to use lowercase
+        Rare, but real:
+            Case-sensitive identifiers
+            Product codes: AB12 vs ab12
+            Tags where case matters
+            Password-like fields (rare in search)
+
+    🔹 asciifolding
+        café → cafe
+        naïve → naive
+        Useful for:
+            user-generated content
+            multilingual search
+        Not needed if you only have English and use the standard analyzer.
+
+        🏗 Typical order in analyzer
+            tokenizer
+             → lowercase
+             → asciifolding
+             → stop
+             → stemmer
+
+        Why after lowercase?
+            Because accents can appear in uppercase too.
 
     🔹 stop
         Removes common words:
@@ -138,6 +163,23 @@ Tokenizers & Analyzers
             exact phrase matching
             legal / compliance text
 
+        🎯 Why use it?
+            Stopwords:
+                Appear in almost every document
+                Add noise
+                Increase index size
+                Slow queries slightly
+            Removing them:
+                Improves relevance
+                Reduces index size
+                Speeds search a bit
+        🏗 Typical order
+            tokenizer
+             → lowercase
+             → asciifolding
+             → stop
+             → stemmer
+
     🔹 stemmer
         running → run
         errors → error
@@ -146,6 +188,13 @@ Tokenizers & Analyzers
         Bad for:
             product names  [E.g., running shoes being stemmed to run shoes]
             logs
+
+        🏗 Typical order
+            tokenizer
+             → lowercase
+             → asciifolding
+             → stop
+             → stemmer
 
     🔹 synonym
         This is enterprise-level power.
