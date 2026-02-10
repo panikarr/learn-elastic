@@ -1,0 +1,251 @@
+🎯 Goal
+
+    Text:
+    "Café movies running"
+
+    Should become:
+    cafe
+    movi
+    run
+
+    So search:
+    movie
+    run
+    cafe
+
+    all match.
+
+
+Try:
+
+    tokenizers: standard [split by whitespace and punctuation]
+    token filters: lowercase, asciifolding, stemmer [english]
+
+    POST _analyze
+    {
+        "tokenizer": "standard",
+        "filter": [
+            "lowercase",
+            "asciifolding",
+            {
+                "type": "stemmer",
+                "language": "english"
+            }
+        ],
+        "text": "Café movies running"
+    }
+
+    Lets design index:
+        PUT basic_search_analyzer_test
+        {
+          "settings": {
+            "analysis": {
+              "filter": {
+                "english_stemmer":{
+                  "type": "stemmer",
+                  "language": "english"
+                }
+              },
+              "analyzer": {
+                "search_analyzer":{
+                  "tokenizer": "standard",
+                  "filter": [
+                    "lowercase",
+                    "asciifolding",
+                    "english_stemmer"
+                  ]
+                }
+              }
+            }
+          },
+          "mappings": {
+            "properties": {
+              "some_text": {
+                "type": "text",
+                "analyzer": "search_analyzer"
+              }
+            }
+          }
+        }
+
+        POST basic_search_analyzer_test/_doc/1
+        {
+          "some_text": "Running in cafés"
+        }
+
+
+        POST basic_search_analyzer_test/_doc/2
+        {
+          "some_text": "Running in theaters"
+        }
+
+        POST basic_search_analyzer_test/_doc/3
+        {
+          "some_text": "Café movies running"
+        }
+
+
+        POST basic_search_analyzer_test/_search
+        {
+          "query": {
+            "match_all": {}
+          }
+        }
+
+
+        Request:
+            POST basic_search_analyzer_test/_search
+            {
+              "query": {
+                "match": {
+                  "some_text": "cafe"
+                }
+              }
+            }
+        Response:
+            {
+              "took": 1,
+              "timed_out": false,
+              "_shards": {
+                "total": 1,
+                "successful": 1,
+                "skipped": 0,
+                "failed": 0
+              },
+              "hits": {
+                "total": {
+                  "value": 2,
+                  "relation": "eq"
+                },
+                "max_score": 0.4700036,
+                "hits": [
+                  {
+                    "_index": "basic_search_analyzer_test",
+                    "_id": "1",
+                    "_score": 0.4700036,
+                    "_source": {
+                      "some_text": "Running in cafés"
+                    }
+                  },
+                  {
+                    "_index": "basic_search_analyzer_test",
+                    "_id": "3",
+                    "_score": 0.4700036,
+                    "_source": {
+                      "some_text": "Café movies running"
+                    }
+                  }
+                ]
+              }
+            }
+
+
+🧩 Analyzer 2 Goal — Log / Structured Text
+
+    You need to design a custom analyzer for a field that stores log-like text.
+
+        Example input documents
+            ERROR[500]: /api/v1/users?id=123
+            WARN auth token-expired user=77
+            INFO PaymentService started
+
+    🎯 What the analyzer should achieve
+
+        When indexed, the text should be searchable by meaningful parts.
+
+        So from: ERROR[500]: /api/v1/users?id=123
+        you should be able to search and match by:
+
+            error
+            500
+            api
+            v1
+            users
+            id
+            123
+
+        Case-insensitive search is required.
+        Accents don’t matter.
+
+        We do NOT care about:
+                grammar
+                stemming
+                stopwords
+                synonyms
+
+        We care about:
+            extracting meaningful tokens from structured text
+
+        🧠 Constraints
+            Your analyzer should:
+                Work well for logs / URLs / API paths
+                Ignore punctuation and separators
+                Be case-insensitive
+                Keep numbers searchable
+                Avoid over-processing
+
+
+        Solution:
+
+            Index design:
+                PUT log_analyzer_test
+                {
+                  "settings": {
+                    "analysis": {
+                      "tokenizer": {
+                        "logs_tokenizer":{
+                          "type": "pattern",
+                          "pattern": "[^a-zA-Z0-9]+"
+                        }
+                      },
+                      "analyzer": {
+                        "logs_analyzer":{
+                          "tokenizer": "logs_tokenizer",
+                          "filter":["lowercase"]
+                        }
+                      }
+                    }
+                  },
+                  "mappings": {
+                    "properties": {
+                      "log_text": {
+                        "type": "text",
+                        "analyzer": "logs_analyzer"
+                      }
+                    }
+                  }
+                }
+
+            Test:
+                POST log_analyzer_test/_analyze
+                {
+                  "field": "log_text",
+                  "text": "WARN auth token-expired user=77"
+                }
+            Ingest documents:
+                PUT log_analyzer_test/_doc/1
+                {
+                  "log_text":"ERROR[500]: /api/v1/users?id=123"
+                }
+
+                PUT log_analyzer_test/_doc/2
+                {
+                  "log_text":"WARN auth token-expired user=77"
+                }
+
+                PUT log_analyzer_test/_doc/3
+                {
+                  "log_text":"INFO PaymentService started"
+                }
+
+
+            Search:
+                POST log_analyzer_test/_search
+                {
+                  "query": {
+                    "match": {
+                      "log_text": "started"
+                    }
+                  }
+                }
+

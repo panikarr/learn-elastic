@@ -30,7 +30,7 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 ### 1️⃣ Tokenizers & Analyzers (Week 1)
 - **Deep dive into tokenizers**: standard, whitespace, keyword, pattern, n-gram, edge n-gram. ✅
 - **Filters**: lowercase, stop, asciifolding, stemmer, synonyms, custom filters. ✅
-- **Custom analyzer creation**: combining tokenizer + filters.
+- **Custom analyzer creation**: combining tokenizer + filters. ✅
 - **Index-time vs query-time analysis** and how it affects relevance.
 - **Advanced exercises**: define 3 custom analyzers and explain search behavior for each.
 
