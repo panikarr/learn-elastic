@@ -1,0 +1,73 @@
+
+PUT test_mullti_fields
+{
+  "mappings": {
+    "properties": {
+      "title":{
+        "type": "text",
+        "fields": {
+          "raw":{
+            "type":"keyword"
+          }
+        }
+      }
+    }
+  }
+}
+
+PUT test_mullti_fields/_doc/1
+{
+  "title": "Learn elastic search"
+}
+
+PUT test_mullti_fields/_doc/2
+{
+  "title": "Learn AI powered search"
+}
+
+POST test_mullti_fields/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+//fails
+POST test_mullti_fields/_search
+{
+  "query": {
+    "term": {
+      "title": {
+        "value": "Learn elastic search"
+      }
+    }
+  }
+}
+
+//works
+POST test_mullti_fields/_search
+{
+  "query": {
+    "term": {
+      "title.raw": {
+        "value": "Learn elastic search"
+      }
+    }
+  }
+}
+
+//works
+POST test_mullti_fields/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "title.raw": "Learn elastic search"
+          }
+        }
+      ]
+    }
+  }
+}

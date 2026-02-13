@@ -31,14 +31,11 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 - **Deep dive into tokenizers**: standard, whitespace, keyword, pattern, n-gram, edge n-gram. ✅
 - **Filters**: lowercase, stop, asciifolding, stemmer, synonyms, custom filters. ✅
 - **Custom analyzer creation**: combining tokenizer + filters. ✅
-- **Index-time vs query-time analysis** and how it affects relevance.
-- **Advanced exercises**: define 3 custom analyzers and explain search behavior for each.
+- **Index-time vs query-time analysis** and how it affects relevance.✅ [Just reading, no exercises]
 
 ### 2️⃣ Multi-fields (Week 1)
-- **Use-cases**: search vs aggregation, exact matching vs full-text.
-- **Performance considerations**: doc_values usage, disk vs memory impact.
-- **Nested multi-fields**: when nested fields require multi-field setups.
-- **Hands-on exercise**: design 5 fields using multi-fields for aggregation + search.
+- **Use-cases**: search vs aggregation, exact matching vs full-text.✅
+- **Performance considerations**: doc_values usage, disk vs memory impact.✅
 
 ### 3️⃣ Analyzer Impact on Queries (Week 2)
 - How `match` and `match_phrase` use the analyzer of the target field.

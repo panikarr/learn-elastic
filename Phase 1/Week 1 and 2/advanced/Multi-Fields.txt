@@ -1,0 +1,82 @@
+1️⃣ What are multi-fields?
+    Multi-fields allow one field value to be indexed in multiple ways.
+    Example: "Running Shoes"
+    Stored as:
+        title          → analyzed text (for search)
+        title.keyword  → exact value (for sort/agg/filter)
+
+
+2️⃣ Why multi-fields are needed
+    A text field is analyzed: "Running Shoes" → run, shoe
+    So you cannot:
+        sort
+        aggregate
+        exact filter
+    Because text fields:
+        have no doc_values
+        store tokens in inverted index
+    A keyword field stores: "Running Shoes"
+    and supports:
+        sorting
+        aggregations
+        filtering
+    So we need both → multi-fields.
+
+3️⃣ Basic mapping pattern
+    "title": {
+      "type": "text",
+      "fields": {
+        "keyword": {
+          "type": "keyword"
+        }
+      }
+    }
+
+    This creates:
+        title           → full-text search
+        title.keyword   → exact operations
+
+4️⃣ Common examples:
+
+    product_name
+    username
+    category
+    city
+    title
+    tags
+
+5️⃣ fielddata vs doc_values (performance)
+
+    Never aggregate on text fields using: "fielddata": true
+    Because:
+        loads data into JVM heap
+        heavy memory usage
+        can crash nodes
+
+    Instead use:
+        keyword fields with doc_values
+
+6️⃣ Default .keyword behavior
+    Elasticsearch dynamic mapping auto-creates:
+        field.keyword
+        with: ignore_above: 256
+    So explicit mapping is not always required.
+
+9️⃣ When to explicitly map multi-fields
+    You should map manually when you need:
+        custom ignore_above
+        custom normalizer
+        multiple keyword variants
+        strict mapping
+        predictable production schema
+        Example:
+
+        "username": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        }
