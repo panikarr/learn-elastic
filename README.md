@@ -37,27 +37,11 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 - **Use-cases**: search vs aggregation, exact matching vs full-text.✅
 - **Performance considerations**: doc_values usage, disk vs memory impact.✅
 
-### 3️⃣ Analyzer Impact on Queries (Week 2)
-- How `match` and `match_phrase` use the analyzer of the target field.
-- Differences between query-time analyzer and index-time analyzer.
-- Using custom analyzers for synonyms, n-grams, prefix/edge searches.
-- **Advanced exercises**: show examples of failing vs successful searches with different analyzers.
-
-### 4️⃣ Advanced Query DSL Concepts (Week 2)
-- **Scoring vs non-scoring queries**: must vs filter nuance.
+### 3️⃣ Advanced Query DSL Concepts (Week 2)
 - **Filter caching & performance**: how Elasticsearch caches boolean filters.
 - **Complex bool queries**: nested must/should/must_not interactions.
 - **Range and exists edge cases**: handling missing fields, null values.
 - **Hands-on exercise**: write a bool query combining scoring and non-scoring clauses for real-world scenario.
-
-### 5️⃣ Advanced Practice & Mini-Project
-- Design 5 indices covering complex text, keywords, nested objects, and multi-fields.
-- Apply at least 3 custom analyzers across these indices.
-- Run sample queries to show scoring differences and aggregation results.
-- Analyze why some queries may fail or give unexpected results due to analyzer or mapping choice.
-
-
-**Goal:** By the end of this session, you will have a **senior-engineer-level understanding of mapping, analyzers, and query DSL**, ready to confidently handle Week 3 Nested Queries and beyond.
 
 ---
 
