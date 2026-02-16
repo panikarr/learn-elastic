@@ -15,7 +15,7 @@ A senior-engineer-grade learning plan covering search fundamentals, aggregations
 - Dynamic mapping risks
 
 ### Week 2: Query DSL Deep Dive
-- Bool query anatomy: must, filter, should, must_not
+- Bool query anatomy: must, filter, should, must_not ✅
 - Query context vs filter context ✅
 - Term vs match vs match_phrase ✅
 - Range, exists ✅

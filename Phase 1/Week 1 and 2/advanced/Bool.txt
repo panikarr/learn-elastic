@@ -1,0 +1,180 @@
+//what we will learn?
+Bool query anatomy: must, filter, should, must_not
+
+A bool query has 4 clause types:
+    must
+    filter
+    should
+    must_not
+
+Think of it as a decision pipeline.
+    1. must_not → remove docs
+    2. filter   → strict include
+    3. must     → must match + score
+    4. should   → optional boost
+
+🔵 1. filter (start here — most important)
+    What it does
+        Mandatory condition
+        Does NOT affect score
+        Cached by Elasticsearch
+        Fast
+
+        Example
+            {
+              "bool": {
+                "filter": [
+                  { "term": { "status": "ACTIVE" } }
+                ]
+              }
+            }
+        This is like SQL: WHERE status = 'ACTIVE'
+
+    Every result MUST match.
+    Score = 0 (unless other scoring clauses exist).
+
+    Why filter exists
+        Performance.
+        Elasticsearch builds a bitset of matching docs:
+            doc1 → yes
+            doc2 → no
+            doc3 → yes
+        This gets cached and reused.
+        So if 100 queries use: status = ACTIVE
+        ES reuses the same bitset.
+        Huge performance win.
+    When to ALWAYS use filter
+    Put in filter if it:
+        doesn't affect relevance
+        is exact match
+        is range restriction
+        is boolean condition
+
+🔵 2. must
+    What it does
+        Mandatory
+        Affects score
+        NOT cached
+        Used for relevance matching.
+    Example:
+        "must": [
+          { "match": { "title": "running shoes" } }
+        ]
+    This calculates TF/IDF/BM25 score.
+
+    //Notes
+    'TF-IDF' roughly says:
+        score = Term Frequency * Inverted Document Frequency
+        So a doc gets high score if:
+            it contains the term many times
+            and that term is rare
+    Simplified 'BM25' intuition. BM25 -> smarter version of TF-IDF.
+        Score increases when:
+            term appears
+            appears early
+            appears often (but capped)
+            field is short and focused
+            term is rare globally
+
+    Important nuance
+        You can put a term inside must:
+            "must": [
+              { "term": { "brand": "nike" } }
+            ]
+        But you shouldn't unless it affects score.
+        Why?
+            Because now ES calculates score unnecessarily.
+
+        Sometimes you want a term to affect ranking.
+        Example:
+            Boost Nike products:
+                {
+                  "bool": {
+                    "must": [
+                      { "match": { "title": "running shoes" } }
+                    ],
+                    "should": [
+                      { "term": { "brand": "nike" } }
+                    ]
+                  }
+                }
+            Here the term query is used for scoring (boosting), so it belongs in scoring context (should).
+
+    Better:
+        filter → term
+        must   → match
+
+🔵 3. should
+
+    Basic idea:
+        Optional scoring boost.
+        But behaviour depends on context.
+
+        Case A — has must or filter
+            Then should = optional boost.
+        Example:
+            {
+              "bool": {
+                "must": [
+                  { "match": { "title": "laptop" } }
+                ],
+                "should": [
+                  { "term": { "brand": "apple" } }
+                ]
+              }
+            }
+        All laptops returned.
+        Apple laptops score higher.
+
+        Case B — NO must, NO filter
+        Then should becomes mandatory.
+        Example:
+        {
+          "bool": {
+            "should": [
+              { "term": { "brand": "apple" }},
+              { "term": { "brand": "samsung" }}
+            ]
+          }
+        }
+        ** At least one must match.**
+
+        Equivalent to:
+            brand=apple OR brand=samsung
+        Forcing should
+            You can control: "minimum_should_match": 1
+        Now should becomes required even if must exists.
+
+        *************************************************************
+        * No must + no filter → minimum_should_match defaults to 1  *
+        * Has must or filter → minimum_should_match defaults to 0   *
+        *  minimum_should_match becomes 1 when the bool query has:  *
+        *     no must AND                                           *
+        *     no filter                                             *
+        *  must_not does NOT count as a positive clause.            *
+        * If we want to make should optional set -                  *
+        * "minimum_should_match": 0 *                               *
+        *************************************************************
+
+🔵 4. must_not
+    What it does
+        Excludes docs
+        No scoring
+        Cached
+    Example:
+        "must_not": [
+          { "term": { "status": "DELETED" } }
+        ]
+    Equivalent SQL: WHERE status != DELETED
+
+    Important nuance
+        Docs excluded BEFORE scoring.
+    So ES does:
+        remove docs → filter → score remaining
+🔵 Execution Order (real internal flow)
+    When ES runs a bool query:
+        1. must_not removes docs
+        2. filter reduces docs (cached)
+        3. must calculates score
+        4. should boosts score
+    This ordering matters for performance.
