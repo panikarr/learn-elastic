@@ -304,4 +304,7 @@ Tokenizers & Analyzers
         That’s the power of the analyzer.
 
 
+        //refer to Analyzers_Practical.txt for more examples and practical use cases.
+
+
 

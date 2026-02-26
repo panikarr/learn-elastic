@@ -71,3 +71,19 @@ POST test_mullti_fields/_search
     }
   }
 }
+
+
+//works
+POST test_mullti_fields/_search
+{
+  "query": {
+    "match_phrase": {
+      "title": "Learn elastic search"
+    }
+  }
+}
+
+match_phrase works by using positional information stored in the inverted index.
+Lucene records the position of each token within a document.
+When a phrase query runs, Elasticsearch checks whether the tokens appear in the correct order and distance using these positions.
+It does not build phrases in memory, so heap usage is minimal; the operation mostly uses disk-backed index data and CPU for positional checks.

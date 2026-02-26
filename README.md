@@ -6,7 +6,7 @@ A senior-engineer-grade learning plan covering search fundamentals, aggregations
 
 ## Phase 1 – Core Mental Models (Weeks 1–3)
 
-### Week 1: Document Model & Mapping ✅
+### Week 1: Document Model & Mapping ✅  [Note 1 to 4]
 
 - Index vs document
 - Text vs keyword
@@ -38,7 +38,7 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 - **Performance considerations**: doc_values usage, disk vs memory impact.✅
 
 ### 3️⃣ Advanced Query DSL Concepts (Week 2)
-- **Filter caching & performance**: how Elasticsearch caches boolean filters.
+- **Filter caching & performance**: how Elasticsearch caches boolean filters.✅
 - **Complex bool queries**: nested must/should/must_not interactions.
 - **Range and exists edge cases**: handling missing fields, null values.
 - **Hands-on exercise**: write a bool query combining scoring and non-scoring clauses for real-world scenario.
