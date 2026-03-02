@@ -1,0 +1,200 @@
+Non nested index does not preserve the boundaries of object. Look at how the "reviews" mapping caused issues and
+how it got resolved with "nested" object.
+
+*************
+use "properties" to define nested object, now fields.
+Keyword	    Purpose
+--------    ---------
+properties	Defines inner fields of an object or nested type
+fields	    Defines multi-fields (alternate indexing of same field value)
+*************
+
+//Flattened reviews
+PUT and_or_explosion
+{
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text"
+      },
+      "reviews": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "float"
+          },
+          "comments": {
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+//data population
+POST and_or_explosion/_bulk
+{
+  "index": {
+    "_id": 201
+  }
+}
+{
+  "name": "Shutter Island",
+  "reviews.rating": 7,
+  "reviews.comments": "great thriller movie"
+}
+{
+  "index": {
+    "_id": 202
+  }
+}
+{
+  "name": "The Sixth Sense",
+  "reviews.rating": 8,
+  "reviews.comments": "amazing thriller movie"
+}
+{
+  "index": {
+    "_id": 203
+  }
+}
+{
+  "name": "Titanc",
+  "reviews":[
+    {"rating": 7, "comments": "good"},
+    {"rating": 4, "comments": "not a thriller"}
+  ]
+}
+
+
+//Query must not match [{"rating": 4, "comments": "not a thriller"}], but it will.
+POST and_or_explosion/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "reviews.rating": {
+              "gte": 5
+            }
+          }
+        },
+        {
+          "match": {
+            "reviews.comments": "thriller"
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+//FIX - reviews as nested object
+********************************
+PUT and_or_explosion_nested_fix
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "name": {
+        "type": "text"
+      },
+      "reviews": {
+        "type": "nested",
+        "properties": {
+          "rating": {
+            "type": "float"
+          },
+          "comments": {
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+//ingest data -- look at how reviews are ingested
+POST and_or_explosion_nested_fix/_bulk
+{
+  "index": {
+    "_id": 201
+  }
+}
+{
+  "name": "Shutter Island",
+  "reviews": [
+    {
+      "rating": 7,
+      "comments": "great thriller movie"
+    }
+  ]
+}
+{
+  "index": {
+    "_id": 202
+  }
+}
+{
+  "name": "The Sixth Sense",
+  "reviews": [
+    {
+      "rating": 8,
+      "comments": "amazing thriller movie"
+    }
+  ]
+}
+{
+  "index": {
+    "_id": 203
+  }
+}
+{
+  "name": "Titanc",
+  "reviews": [
+    {
+      "rating": 7,
+      "comments": "good"
+    },
+    {
+      "rating": 4,
+      "comments": "not a thriller"
+    }
+  ]
+}
+
+//Nested query
+POST and_or_explosion_nested_fix/_search
+{
+  "query": {
+    "nested": {
+      "path": "reviews",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "range": {
+                "reviews.rating": {
+                  "gte": 5
+                }
+              }
+            },
+            {
+              "match": {
+                "reviews.comments": "thriller"
+              }
+            }
+          ]
+        }
+      },
+      "inner_hits": {
+        "size": 1
+      }
+    }
+  }
+}
+
