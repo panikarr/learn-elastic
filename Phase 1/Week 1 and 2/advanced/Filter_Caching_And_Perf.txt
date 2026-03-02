@@ -1,0 +1,79 @@
+
+🔹 Filter Caching & Query Cache
+    Elasticsearch optimizes search performance mainly by caching filters, not full queries.
+    Search engines rely heavily on:
+        filter cache (bitsets)
+    and only secondarily on:
+        query cache
+    🧠 Filter Cache (Most Important)
+        What it caches?
+            Elasticsearch caches bitsets per segment representing: “Which documents match this filter?”
+            Example filter: status = ACTIVE
+                Bitset:
+
+                doc1 → true
+                doc2 → false
+                doc3 → true
+            This is reused across many queries.
+
+        Where filter cache is used
+            Only in:
+                filter context
+                must_not context
+
+        Not used in:
+            must (scoring context)
+            should (scoring context)
+
+
+    Poor cache candidates which are bad for caching:
+        timestamp > now-5m
+        dynamic ranges
+        random user IDs
+        scripts
+        constantly changing values
+
+    Reason:
+        Bitset becomes invalid immediately.
+        Segment-level nuance
+
+    Cache is built per segment.
+    Frequent indexing → new segments → cache rebuilt.
+
+
+    Execution order with caching
+        1. must_not → remove docs
+        2. filter   → apply cached bitsets
+        3. must     → scoring
+        4. should   → boosting
+
+    So:
+        Filtering happens before scoring
+        → reduces scoring cost
+        → improves performance
+
+    🧠 Query Cache (Secondary)
+        What it caches?
+            full query result for a segment
+        Only used when:
+            identical query repeats
+            segment unchanged
+        ES decides it's cacheable
+
+        Good use cases
+            dashboards
+            analytics queries
+            repeated identical searches
+            low update frequency index
+
+    🧠 Request Cache (brief)
+        Caches: full response (especially aggregations)
+
+        Useful for:
+            dashboards
+            analytics panels
+
+    🧠 Mental model to remember
+        Filter cache → critical for search APIs
+        Query cache  → useful for dashboards
+        Request cache → useful for aggregations

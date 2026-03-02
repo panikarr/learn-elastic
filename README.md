@@ -38,10 +38,10 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 - **Performance considerations**: doc_values usage, disk vs memory impact.✅
 
 ### 3️⃣ Advanced Query DSL Concepts (Week 2)
-- **Filter caching & performance**: how Elasticsearch caches boolean filters.✅
-- **Complex bool queries**: nested must/should/must_not interactions.
-- **Range and exists edge cases**: handling missing fields, null values.
-- **Hands-on exercise**: write a bool query combining scoring and non-scoring clauses for real-world scenario.
+- **Filter caching & performance**: how Elasticsearch caches boolean filters.✅ [refer -> Filter_Caching_And_Perf.txt]
+- **Complex bool queries**: nested must/should/must_not interactions. ✅
+- **Range and exists edge cases**: handling missing fields, null values. [Skipping.....]
+- **Hands-on exercise**: write a bool query combining scoring and non-scoring clauses for real-world scenario. ✅
 
 ---
 

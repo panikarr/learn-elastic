@@ -1,0 +1,244 @@
+Streaming Platform Use Case (Clean Version)
+    Design a query for:
+        User in Ireland searches: crime thriller al pacino
+    Business rules:
+        Query must match title OR description
+        At least 2 query terms must match
+    Boost:
+        Exact phrase in title
+        Match in actors
+        Genre = Crime
+        Genre = Thriller
+    Filter:
+        available_countries contains “Ireland”
+        rating >= 6
+    Exclude:
+        is_premium = true
+        If release_year exists, allow it (but don’t require it)
+    No advanced features.
+
+
+Solution:
+
+  Design:
+
+    PUT movies
+    {
+      "settings": {
+        "analysis": {
+          "filter": {
+            "en_stop": {
+              "type": "stop",
+              "stopwords": "_english_"
+            }
+          },
+          "analyzer": {
+            "custom_english": {
+              "tokenizer": "standard",
+              "filter": [
+                "lowercase",
+                "en_stop"
+              ]
+            }
+          }
+        }
+      },
+      "mappings": {
+        "properties": {
+          "title": {
+            "type": "text",
+            "analyzer": "custom_english",
+            "fields": {
+              "raw": {
+                "type": "keyword"
+              }
+            }
+          },
+          "description": {
+            "type": "text",
+            "analyzer": "custom_english"
+          },
+          "actors": {
+            "type": "keyword"
+          },
+          "genre": {
+            "type": "keyword"
+          },
+          "available_countries": {
+            "type": "keyword"
+          },
+          "rating": {
+            "type": "float"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "release_year": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+
+    GET _cat/indices
+
+    POST movies/_search
+    {
+        "query": {
+            "match_all": {}
+        }
+    }
+
+POST movies/_search
+{
+  "query": {
+    "bool": {
+      "must_not": [
+        {
+          "term": {
+            "is_premium": {
+              "value": "true"
+            }
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "available_countries": "UK"
+          }
+        },
+        {
+          "range": {
+            "rating": {
+              "gte": 6
+            }
+          }
+        }
+      ],
+      "must": [
+        {
+          "multi_match": {
+            "query": "Trails",
+            "fields": [
+              "title",
+              "description"
+            ]
+          }
+        }
+      ],
+      "should": [
+        {
+          "exists": {
+            "field": "release_year"
+          }
+        },
+        {
+          "match_phrase": {
+            "title": {
+              "query": "Mountain Signal",
+              "boost": 3
+            }
+          }
+        },
+        {
+          "terms": {
+            "genre": [
+              "Adventure",
+              "Thriller"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+    //from gpt
+    POST movies/_search
+    {
+      "query": {
+        "bool": {
+          "must_not": [
+            { "term": { "is_premium": true } }
+          ],
+          "filter": [
+            { "term": { "available_countries": "UK" } },
+            { "range": { "rating": { "gte": 6 } } }
+          ],
+          "must": [
+            {
+              "multi_match": {
+                "query": "Trails",
+                "fields": ["title", "description"]
+              }
+            }
+          ],
+          "should": [
+            {
+              "match_phrase": {
+                "title": {
+                  "query": "Mountain Signal",
+                  "boost": 3
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+
+    POST movies/_analyze
+    {
+        "text": "Waves of Tomorrow",
+        "analyzer": "custom_english"
+    }
+
+    POST _analyze
+    {
+        "tokenizer": "standard",
+        "filter": [
+            "lowercase",
+            "stop"
+        ],
+        "text": "Waves of Tomorrow"
+    }
+
+    POST movies/_bulk
+    { "index": { "_id": 201 } }
+    { "title": "Shadow Protocol in Berlin", "description": "Berlin shadows surround a covert protocol operation; the protocol is traced through encrypted radios and safehouses.", "actors": ["Liam Cross", "Emma Vale"], "genre": "Action", "available_countries": ["US", "UK", "DE"], "rating": 7.8, "is_premium": true, "release_year": 2022 }
+    { "index": { "_id": 202 } }
+    { "title": "Protocol Breach: London Night", "description": "A protocol breach hits London at night; investigators follow the protocol trail across docks, CCTV and coded emails.", "actors": ["Aiden Shaw", "Priya Nair"], "genre": "Thriller", "available_countries": ["UK", "IE", "US"], "rating": 7.2, "is_premium": false, "release_year": 2021 }
+    { "index": { "_id": 203 } }
+    { "title": "Midnight Echo Mystery", "description": "A midnight echo shakes the town; the echo repeats near the river, leaving clues on bridges and abandoned boats.", "actors": ["Noah Bennett", "Olivia Hart"], "genre": "Mystery", "available_countries": ["US", "IE"], "rating": 6.9, "is_premium": false, "release_year": 2020 }
+    { "index": { "_id": 204 } }
+    { "title": "Echoes at the Harbor", "description": "Harbor echoes grow louder; an echo leads to a missing cargo case, a diver, and a damaged lighthouse recorder.", "actors": ["Finn Doyle", "Sienna Park"], "genre": "Thriller", "available_countries": ["UK", "CA"], "rating": 7.0, "is_premium": true, "release_year": 2019 }
+    { "index": { "_id": 205 } }
+    { "title": "Neon Streets Rebel", "description": "Neon streets glow as a rebel courier runs rooftops; neon drones scan alleys and the rebel network swaps chips.", "actors": ["Leo Carter", "Zoe Adams"], "genre": "Sci-Fi", "available_countries": ["US", "JP"], "rating": 8.0, "is_premium": true, "release_year": 2024 }
+    { "index": { "_id": 206 } }
+    { "title": "Neon Circuit Uprising", "description": "A neon circuit powers the uprising; neon billboards hide maps, while engineers reroute power through tunnels.", "actors": ["Hana Sato", "Miles Quinn"], "genre": "Sci-Fi", "available_countries": ["JP", "US", "AU"], "rating": 7.7, "is_premium": false, "release_year": 2023 }
+    { "index": { "_id": 207 } }
+    { "title": "Broken Symphony Tour", "description": "A broken symphony tour begins; the symphony score vanishes, and rehearsals unravel amid rival conductors.", "actors": ["Isabella Knight", "Henry Scott"], "genre": "Drama", "available_countries": ["US", "FR"], "rating": 7.9, "is_premium": true, "release_year": 2022 }
+    { "index": { "_id": 208 } }
+    { "title": "Symphony of Ashes", "description": "A symphony rises from ashes after a theater fire; the symphony returns with new instruments and a secret patron.", "actors": ["Camille Laurent", "Jonas Pike"], "genre": "Drama", "available_countries": ["FR", "UK"], "rating": 7.4, "is_premium": false, "release_year": 2018 }
+    { "index": { "_id": 209 } }
+    { "title": "Hidden Trails in the Park", "description": "Hidden trails cut across the park; the trails reveal carvings, a ranger diary, and an old survey marker.", "actors": ["Chloe Brooks", "Ryan Mitchell"], "genre": "Adventure", "available_countries": ["AU", "NZ", "UK"], "rating": 6.5, "is_premium": false, "release_year": 2017 }
+    { "index": { "_id": 210 } }
+    { "title": "Trails of the Mountain Signal", "description": "Mountain trails circle a signal tower; the trails lead to snow caves, a lost radio, and rescue flares.", "actors": ["Eli Walker", "Maya Singh"], "genre": "Adventure", "available_countries": ["CA", "US", "UK"], "rating": 7.1, "is_premium": false, "release_year": 2020 }
+    { "index": { "_id": 211 } }
+    { "title": "City of Whispers Corruption", "description": "In the city of whispers, corruption spreads; whispers from witnesses expose corruption through ledgers and bribes.", "actors": ["Nathan Price", "Ella Morgan"], "genre": "Thriller", "available_countries": ["US", "UK", "IE"], "rating": 7.3, "is_premium": true, "release_year": 2021 }
+    { "index": { "_id": 212 } }
+    { "title": "Whispers in the Courtroom", "description": "Courtroom whispers shake the trial; whispers point to forged papers, a hidden judge connection, and a leaked recording.", "actors": ["Rosa Patel", "Callum Hayes"], "genre": "Mystery", "available_countries": ["UK", "IE"], "rating": 6.8, "is_premium": false, "release_year": 2019 }
+    { "index": { "_id": 213 } }
+    { "title": "Waves of Tomorrow Climate", "description": "Waves of tomorrow pound the coast; tomorrow’s forecast triggers evacuations, sensor buoys and satellite maps.", "actors": ["Lucas Green", "Mia Clarke"], "genre": "Drama", "available_countries": ["CA", "UK"], "rating": 6.8, "is_premium": false, "release_year": 2018 }
+    { "index": { "_id": 214 } }
+    { "title": "Tomorrow's Tide Experiment", "description": "Tomorrow’s tide fuels an experiment; tomorrow the lab tests turbines, algae samples and storm surge barriers.", "actors": ["Amira Khan", "Theo Grant"], "genre": "Adventure", "available_countries": ["UK", "US"], "rating": 7.0, "is_premium": true, "release_year": 2022 }
+    { "index": { "_id": 215 } }
+    { "title": "Code of Silence Leak", "description": "A code leak breaks the silence; the code is rebuilt with key rotation, audits and an insider confession.", "actors": ["Mason Blake", "Ava Turner"], "genre": "Action", "available_countries": ["US", "DE"], "rating": 7.5, "is_premium": true, "release_year": 2021 }
+    { "index": { "_id": 216 } }
+    { "title": "Silent Code: Tokyo", "description": "A silent code runs Tokyo systems; the code fails during a blackout, forcing engineers to patch live servers.", "actors": ["Kenji Mori", "Elena Voss"], "genre": "Thriller", "available_countries": ["JP", "DE", "US"], "rating": 7.1, "is_premium": false, "release_year": 2020 }
+
+
+
+
+
