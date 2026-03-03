@@ -1,0 +1,47 @@
+🧠 Key Question
+    If multiple nested objects match, how does Elasticsearch compute the parent document’s score?
+        Example:
+        "reviews": [
+          { "rating": 9, "comments": "thriller masterpiece" },
+          { "rating": 8, "comments": "thriller brilliance" },
+          { "rating": 2, "comments": "boring" }
+        ]
+    Query:
+        rating ≥ 5
+        comment contains “thriller”
+        Two reviews match.
+    Now:
+        👉 Does the score:
+        Add both nested scores?
+        Use only the best one?
+        Average them?
+        Ignore nested score?
+    🎯 Enter: score_mode
+        When using a nested query, Elasticsearch allows:
+        "nested": {
+          "path": "reviews",
+          "query": { ... },
+          "score_mode": "avg"
+        }
+    Available modes:
+        score_mode	        Behavior
+        avg (default)	    Average score of matching nested docs
+        max	                Highest scoring nested doc only
+        min	                Lowest scoring nested doc
+        sum	                Add all nested scores
+        none	            Ignore nested score (parent gets 0 from nested)
+    🧠 Why This Matters
+        Imagine:
+            Movie A has 1 strong review match.
+            Movie B has 10 weak review matches.
+            Depending on score_mode, ranking changes dramatically.
+    🧠 What You Should Observe
+        max → score reflects strongest single review
+        sum → score increases with number of matching reviews
+        avg → moderate behavior
+    In review systems, people often prefer:
+        max → "one excellent review is enough"
+        sum → "more matching reviews = more relevance"
+        none → when nested is just filtering
+
+    //refer nested_scoring_practical.txt

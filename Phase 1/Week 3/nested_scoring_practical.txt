@@ -1,0 +1,253 @@
+DELETE score_mode_test
+
+
+PUT score_mode_test
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "name": {
+        "type": "text"
+      },
+      "reviews": {
+        "type": "nested",
+        "properties": {
+          "rating": {
+            "type": "float"
+          },
+          "comments": {
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+POST score_mode_test/_bulk
+{
+  "index": {
+    "_id": 201
+  }
+}
+{
+  "name": "Shutter Island",
+  "reviews": [
+    {
+      "rating": 5,
+      "comments": "great thriller movie"
+    },
+        {
+      "rating": 5,
+      "comments": "amazing thriller movie. I have never seen such a thriller before."
+    }
+  ]
+}
+{
+  "index": {
+    "_id": 202
+  }
+}
+{
+  "name": "The Sixth Sense",
+  "reviews": [
+    {
+      "rating": 10,
+      "comments": "amazing thriller movie"
+    },
+    {
+      "rating": 10,
+      "comments": "amazing thriller thriller movie"
+    },
+        {
+      "rating": 9,
+      "comments": "super movie"
+    },
+
+            {
+      "rating": 9,
+      "comments": "so thrilled by this movie"
+    }
+  ]
+}
+{
+  "index": {
+    "_id": 203
+  }
+}
+{
+  "name": "Titanc",
+  "reviews": [
+    {
+      "rating": 7,
+      "comments": "good"
+    },
+    {
+      "rating": 4,
+      "comments": "not a thriller"
+    }
+  ]
+}
+
+
+POST score_mode_test/_search
+{
+  "_source": {
+    "includes": "name"
+  },
+  "query": {
+    "nested": {
+      "path": "reviews",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "range": {
+                "reviews.rating": {
+                  "gte": 5
+                }
+              }
+            },
+            {
+              "match": {
+                "reviews.comments": "thriller"
+              }
+            }
+          ]
+        }
+      },
+      "score_mode": "max",
+      "inner_hits": {
+      }
+    }
+  }
+}
+
+// result
+
+***************************************************************************************************************
+Here the "score_mode": "max" will pick the highest score of inner hits as the document score.
+                        ================================
+
+why "amazing thriller movie. I have never seen such a thriller before." scored lesser than "great thriller movie"?
+    BM25 - BM25 is basically:
+               How many important query words appear
+               × how rare those words are
+               ÷ how long the field is
+    As the sentence becomes chatty, score decreases.
+***************************************************************************************************************
+
+{
+  "took": 3,
+  "timed_out": false,
+  "_shards": {
+    "total": 1,
+    "successful": 1,
+    "skipped": 0,
+    "failed": 0
+  },
+  "hits": {
+    "total": {
+      "value": 2,
+      "relation": "eq"
+    },
+    "max_score": 1.6771551,
+    "hits": [
+      {
+        "_index": "score_mode_test",
+        "_id": "202",
+        "_score": 1.6771551,
+        "_source": {
+          "name": "The Sixth Sense"
+        },
+        "inner_hits": {
+          "reviews": {
+            "hits": {
+              "total": {
+                "value": 2,
+                "relation": "eq"
+              },
+              "max_score": 1.6771551,
+              "hits": [
+                {
+                  "_index": "score_mode_test",
+                  "_id": "202",
+                  "_nested": {
+                    "field": "reviews",
+                    "offset": 1
+                  },
+                  "_score": 1.6771551,
+                  "_source": {
+                    "rating": 10,
+                    "comments": "amazing thriller thriller movie"
+                  }
+                },
+                {
+                  "_index": "score_mode_test",
+                  "_id": "202",
+                  "_nested": {
+                    "field": "reviews",
+                    "offset": 0
+                  },
+                  "_score": 1.5485814,
+                  "_source": {
+                    "rating": 10,
+                    "comments": "amazing thriller movie"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "_index": "score_mode_test",
+        "_id": "201",
+        "_score": 1.5485814,
+        "_source": {
+          "name": "Shutter Island"
+        },
+        "inner_hits": {
+          "reviews": {
+            "hits": {
+              "total": {
+                "value": 2,
+                "relation": "eq"
+              },
+              "max_score": 1.5485814,
+              "hits": [
+                {
+                  "_index": "score_mode_test",
+                  "_id": "201",
+                  "_nested": {
+                    "field": "reviews",
+                    "offset": 0
+                  },
+                  "_score": 1.5485814,
+                  "_source": {
+                    "rating": 5,
+                    "comments": "great thriller movie"
+                  }
+                },
+                {
+                  "_index": "score_mode_test",
+                  "_id": "201",
+                  "_nested": {
+                    "field": "reviews",
+                    "offset": 1
+                  },
+                  "_score": 1.4538003,
+                  "_source": {
+                    "rating": 5,
+                    "comments": "amazing thriller movie. I have never seen such a thriller before."
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

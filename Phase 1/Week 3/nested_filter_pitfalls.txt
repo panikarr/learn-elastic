@@ -1,0 +1,84 @@
+🧠 Pitfall #1 — Filtering Nested Fields Without nested
+    This is the most common mistake.
+        Suppose you write:
+        {
+          "query": {
+            "bool": {
+              "filter": [
+                { "range": { "reviews.rating": { "gte": 5 } } }
+              ]
+            }
+          }
+        }
+
+        If reviews is nested, this is WRONG.
+        Why?
+            Because this filter runs at the parent document level, not inside nested scope.
+            Elasticsearch does not automatically “enter” the nested context.
+        You must wrap it:
+        {
+          "query": {
+            "nested": {
+              "path": "reviews",
+              "query": {
+                "range": {
+                  "reviews.rating": { "gte": 5 }
+                }
+              }
+            }
+          }
+        }
+        🔥 Rule
+            If the field is nested,
+            every query/filter on that field must be inside a nested query.
+            Always.
+🧠 Pitfall #2 — Using nested inside filter but expecting scoring
+    Example:
+        {
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "nested": {
+                    "path": "reviews",
+                    "query": {
+                      "match": { "reviews.comments": "thriller" }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+    This works — but:
+        Because it’s inside filter
+        It does NOT contribute to score
+        score_mode becomes irrelevant
+    Many people expect boosting behavior here.
+    But filter context = no scoring.
+
+🧠 Pitfall #3 — Multiple nested filters across different paths
+    If you had:
+        "reviews" (nested)
+        "awards" (nested)
+    You must use two separate nested queries, each with its own path.
+    You cannot combine:
+        { "range": { "reviews.rating": ... } }
+        { "term":  { "awards.type": ... } }
+    in one nested block.
+    Each nested path is isolated.
+
+🧠 Pitfall #4 — Nested inside must vs filter
+    This is subtle but important.
+    Nested inside must
+        Scoring enabled
+        score_mode applies
+        Slower than filter
+        Affects ranking
+    Nested inside filter
+        No scoring
+        Faster
+        Good for hard constraints
+    Production rule:
+        If nested clause is just a requirement → use filter
+        If nested clause should affect ranking → use must

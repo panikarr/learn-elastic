@@ -49,12 +49,12 @@ This session focuses on mastering the missing and advanced topics from Week 1 & 
 
 Nested data causes many real-world search bugs. Master this fully.
 
-- Why nested queries exist
-- object vs nested mapping (AND/OR explosion problem)
-- Avoiding false positives in arrays of objects
-- Nested filtering pitfalls
-- Nested scoring behavior
-- Nested queries inside must vs filter
+- Why nested queries exist ✅
+- object vs nested mapping (AND/OR explosion problem) ✅
+- Avoiding false positives in arrays of objects ✅
+- Nested filtering pitfalls ✅
+- Nested scoring behavior ✅
+- Nested queries inside must vs filter ✅
 - Nested + bool interactions
 - inner_hits for debugging
 - Nested sorting
