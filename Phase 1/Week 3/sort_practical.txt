@@ -1,0 +1,166 @@
+PUT marks
+{
+  "mappings": {
+    "properties": {
+      "name":{
+        "type": "text"
+      },
+      "subject":{
+        "type": "text",
+        "fields": {
+          "raw":{"type":"keyword"}
+        }
+      },
+      "mark":{
+        "type": "integer"
+      }
+    }
+  }
+}
+
+POST marks/_bulk
+{"index":{"_id":401}}
+{"name":"Renjith", "subject":"maths", "mark":85}
+{"index":{"_id":402}}
+{"name":"Renjith", "subject":"english", "mark":65}
+{"index":{"_id":403}}
+{"name":"Saarang Renjith", "subject":"maths", "mark":100}
+{"index":{"_id":404}}
+{"name":"Saarang Renjith", "subject":"english", "mark":80}
+
+//we want to search for all documents where subject is "maths" and name matches "Renjith".
+//This will return both documents 401 and 403, but the order is based on BM25.
+//Student with name "Renjith" will be ranked higher than "Saarang Renjith" because of the match query on name. So document 401 will be ranked higher than 403, even though 403 has a higher mark. This is because we are not sorting by mark, we are sorting by relevance (BM25) based on the match query on name.
+POST marks/_search
+{
+  "_source": {
+    "includes": "name"
+  },
+
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "subject.raw": "maths"
+          }
+        }
+      ],
+      "must": [
+        {
+          "match": {
+            "name": "Renjith"
+          }
+        }
+      ]
+    }
+  }
+}
+
+//Now, let's add sorting by mark in descending order.
+//This will change the order of results. Now document 403 will be ranked higher than 401 because we are sorting by mark, not by relevance.
+//The match query on name will still influence the _score, but since we are sorting by mark, the _score will not affect the order of results.
+POST marks/_search
+{
+  "_source": {
+    "includes": "name"
+  },
+  "sort": [
+    {
+      "mark": {
+        "order": "desc"
+      }
+    }
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "subject.raw": "maths"
+          }
+        }
+      ],
+      "must": [
+        {
+          "match": {
+            "name": "Renjith"
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+//SORTING ARRAYS
+
+PUT marks
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "name":{
+        "type": "text"
+      },
+      "subject":{
+        "type": "text",
+        "fields": {
+          "raw":{"type":"keyword"}
+        }
+      },
+      "attempts":{
+        "type": "integer"
+      }
+    }
+  }
+}
+
+//Here we have an array of attempts for each subject.
+
+POST marks/_bulk
+{"index":{"_id":401}}
+{"name":"Renjith", "subject":"maths", "attempts":[80,85, 75, 78]}
+{"index":{"_id":402}}
+{"name":"Renjith", "subject":"english", "attempts":[65, 70]}
+{"index":{"_id":403}}
+{"name":"Saarang Renjith", "subject":"maths", "attempts":[100, 90]}
+{"index":{"_id":404}}
+{"name":"Saarang Renjith", "subject":"english", "attempts":[80, 70]}
+
+//We want to sort by the minimum attempt score for each document.
+//Intention is to see who scored lowest in their best attempt. So we want to sort by the minimum value in the attempts array.
+
+POST marks/_search
+{
+  "_source": {
+    "includes": "name"
+  },
+  "sort": [
+    {
+      "attempts": {
+        "order": "asc",
+        "mode": "min"
+      }
+    }
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "subject.raw": "maths"
+          }
+        }
+      ],
+      "must": [
+        {
+          "match": {
+            "name": "Renjith"
+          }
+        }
+      ]
+    }
+  }
+}
+
