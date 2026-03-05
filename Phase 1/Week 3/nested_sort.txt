@@ -1,0 +1,136 @@
+//SORT with nested fields
+
+***********************************************************************
+Nested query controls which parent docs are included
+------------          -----------------
+Nested sort filter controls which nested docs are used for sorting
+------------------          -----------------
+In many real systems, you need both, and they should usually match.
+***********************************************************************
+
+PUT movies
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "name": {
+        "type": "text"
+      },
+      "ratings": {
+        "type": "nested",
+        "properties": {
+          "comment": {
+            "type": "text"
+          },
+          "score": {
+            "type": "float"
+          },
+          "genre":{
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}
+
+POST movies/_bulk
+{"index":{"_id":501}}
+{"name":"Gladiator", "ratings":[{"comment":"awesome action 1", "score": 4.5, "genre": "action"},{"comment":"super1", "score": 4.1, "genre": "idk"}, {"comment":"amazing1", "score": 4.2, "genre": "act"}]}
+{"index":{"_id":502}}
+{"name":"Fifty first dates", "ratings":[{"comment":"awesome family 2", "score": 4.7, "genre": "family"},{"comment":"super2", "score": 4.3, "genre": "family"}, {"comment":"amazing2", "score": 4.4, "genre": "family"}]}
+
+
+//which movie should I watch first?
+===================================
+POST movies/_search
+{
+  "sort": [
+    {
+      "ratings.score": {
+        "order": "desc",
+        "mode": "max",
+        "nested":{
+          "path": "ratings"
+        }
+      }
+    }
+  ]
+}
+
+//which movie should I watch last?
+==================================
+POST movies/_search
+{
+  "sort": [
+    {
+      "ratings.score": {
+        "order": "asc",
+        "mode": "min",
+        "nested":{
+          "path": "ratings"
+        }
+      }
+    }
+  ]
+}
+
+
+//which action movie should I watch first, based on comment
+POST movies/_search
+{
+  "sort": [
+    {
+      "ratings.score": {
+        "order": "desc",
+        "mode": "max",
+        "nested":{
+          "path": "ratings"
+        }
+      }
+    }
+  ],
+  "query": {
+    "nested": {
+      "path": "ratings",
+      "query": {
+        "match": {
+          "ratings.comment": "action"
+        }
+      }
+    }
+  }
+}
+
+
+//Return all movies
+//But rank action movies higher
+//And within action movies, sort by best action score
+//Non-action movies should still show up after
+====================================================
+POST movies/_search
+{
+  "sort": [
+    {
+      "ratings.score": {
+        "order": "desc",
+        "mode": "max",
+        "missing": "_last",
+        "nested": {
+          "path": "ratings",
+          "filter": {
+            "term": {
+              "ratings.genre": "action"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+
+====================================================
+If a movie has at least one ratings.genre = action, it gets a real sort value (e.g., 4.5)
+If not, it gets “missing” → pushed to the end (_last) //"missing": "_first", if you want to push it to first
+So action movies come first automatically
+====================================================
