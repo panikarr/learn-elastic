@@ -55,8 +55,8 @@ Nested data causes many real-world search bugs. Master this fully.
 - Nested filtering pitfalls ✅
 - Nested scoring behavior ✅
 - Nested queries inside must vs filter ✅
-- Nested + bool interactions
-- inner_hits for debugging
+- Nested + bool interactions ✅
+- inner_hits for debugging ✅
 - Nested sorting
 - Nested aggregations interaction
 - Performance cost of nested documents

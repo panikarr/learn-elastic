@@ -198,3 +198,40 @@ POST and_or_explosion_nested_fix/_search
   }
 }
 
+//BUGGY QUERY
+=================
+This query is buggy because it does not use nested query in proper way. It will return all three movies because it does not preserve the boundaries of nested objects.
+It will match the first review of "Titanc" (rating 7, comments "good") with the second review of "Titanc" (rating 4, comments "not a thriller"), which is incorrect.
+
+POST score_mode_test/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "nested": {
+            "path": "reviews",
+            "query": {
+              "match": {
+                "reviews.comments": "thriller"
+              }
+            }
+          }
+        },
+        {
+          "nested": {
+            "path": "reviews",
+            "query": {
+              "range": {
+                "reviews.rating": {
+                  "gte": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

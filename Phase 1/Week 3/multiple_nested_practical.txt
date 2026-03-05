@@ -1,0 +1,85 @@
+//here we are creating an index with multiple nested fields, one for name and another for address.
+//We are then adding two documents to the index and finally we are querying the index to find students with firstname "saarang" and houseno 2.
+//This was discussed in Pitfall #3 — Multiple nested filters across different paths in the nested_filter_pitfalls.txt file.
+
+PUT students
+{
+  "mappings": {
+    "properties": {
+      "name":{
+        "type": "nested",
+        "properties": {
+          "firstname":{
+            "type":"text"
+          },
+          "lastname":{
+            "type": "text"
+          }
+        }
+      },
+      "address":{
+        "type": "nested",
+        "properties": {
+          "houseno":{
+            "type": "integer"
+          },
+          "lane":{
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+POST students/_bulk
+{"index":{"_id":401}}
+{"name":[{"firstname":"renjith", "lastname": "panikar"}], "address":[{"houseno":4, "lane":"foster close"}]}
+{"index":{"_id":402}}
+{"name":[{"firstname":"saarang", "lastname": "renjith"}], "address":[{"houseno":2, "lane":"eames close"}]}
+
+POST students/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+//Query to find students with firstname "saarang" and houseno 2
+POST students/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "nested": {
+            "path": "name",
+            "query": {
+              "match": {
+                "name.firstname": "saarang"
+              }
+            },
+            "inner_hits": {}
+          }
+        },
+        {
+          "nested": {
+            "path": "address",
+            "query": {
+              "term": {
+                "address.houseno": {
+                  "value": 2
+                }
+              }
+            },
+            "inner_hits": {}
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+
