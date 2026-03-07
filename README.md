@@ -58,10 +58,10 @@ Nested data causes many real-world search bugs. Master this fully.
 - Nested + bool interactions ✅
 - inner_hits for debugging ✅
 - Nested sorting ✅
-- Performance cost of nested documents
-- When NOT to use nested
-- Nested vs parent-child tradeoffs
-- Debugging incorrect nested matches
+- Performance cost of nested documents ✅
+- When NOT to use nested ✅
+- Nested vs parent-child tradeoffs ✅
+- Debugging incorrect nested matches ✅
 
 **Outcome**
 You can confidently model and query complex structured data without incorrect matches.

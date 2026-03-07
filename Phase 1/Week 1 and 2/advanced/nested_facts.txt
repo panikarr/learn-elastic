@@ -1,0 +1,151 @@
+Nested improves query correctness, but increases:
+    index size  [one nested document is stored as a separate document in the index]
+    query complexity [Nested queries are more complex than regular queries, as they require additional processing to join the nested documents with their parent documents.]
+    update cost [Updating a nested document requires updating the entire parent document, which can be costly in terms of performance and resources.]
+
+When should we avoid nested?
+    When arrays are large [Nested documents can significantly increase the index size and query complexity, so if the arrays are large, it may be better to use a different approach, such as denormalization or parent-child relationships.]
+    When data is frequently updated [Since updating a nested document requires updating the entire parent document, it can be costly in terms of performance and resources. If the data is frequently updated, it may be better to use a different approach, such as denormalization or parent-child relationships.]
+    When object bondaries are not important [If the fields in the array do not need to stay together, and you do not require accurate queries or aggregations on those fields, then using a nested type may not be necessary. In such cases, you can use a regular object type, which is more efficient in terms of index size and query performance.]
+
+        //**************denormalized version of movies index***************
+        DELETE normalized_movies
+        PUT denormalized_movies
+        {
+          "mappings": {
+            "properties": {
+              "name":{
+                "type": "text",
+                "fields": {
+                  "raw": {"type":"keyword"}
+                }
+              },
+              "rating.comment":{
+                "type": "text"
+              },
+              "rating.score":{
+                "type": "float"
+              },
+              "rating.genre":{
+                "type": "keyword"
+              }
+            }
+          }
+        }
+
+        POST denormalized_movies/_bulk
+        {"index":{"_id":101}}
+        {"name":"Gladiator", "rating.comment":"awesome action 1", "rating.score": 4.5, "rating.genre": "action"}
+        {"index":{"_id":102}}
+        {"name":"Gladiator", "rating.comment":"super", "rating.score": 4.1, "rating.genre": "idk"}
+        {"index":{"_id":103}}
+        {"name":"Gladiator", "rating.comment":"amazing1", "rating.score": 4.2, "rating.genre": "act"}
+        {"index":{"_id":104}}
+        {"name":"Fifty first dates", "rating.comment":"super2", "rating.score": 4.3, "rating.genre": "family"}
+        {"index":{"_id":105}}
+        {"name":"Fifty first dates", "rating.comment":"awesome family 2", "rating.score": 4.7, "rating.genre": "family"}
+        {"index":{"_id":106}}
+        {"name":"Fifty first dates", "rating.comment":"amazing2", "rating.score": 4.4, "rating.genre": "family"}
+
+
+        //Look at the use of collapse here. We want to get one document per movie.
+        //watch first
+        POST denormalized_movies/_search
+        {
+          "sort": [
+            {
+              "rating.score": {
+                "order": "desc"
+              }
+            }
+          ],
+          "collapse": {
+            "field": "name.raw"
+          }
+        }
+
+        //watch last
+        POST denormalized_movies/_search
+        {
+          "sort": [
+            {
+              "rating.score": {
+                "order": "asc"
+              }
+            }
+          ],
+          "collapse": {
+            "field": "name.raw"
+          }
+        }
+
+        //which action movie should I watch first, based on comment
+        POST denormalized_movies/_search
+        {
+          "sort": [
+            {
+              "rating.score": {
+                "order": "desc"
+              }
+            }
+          ],
+          "collapse": {
+            "field": "name.raw"
+          },
+          "query": {
+            "match": {
+              "rating.comment": "action"
+            }
+          }
+        }
+
+
+        //Return all movies
+        //But rank action movies higher
+        //And within action movies, sort by best action score
+        //Non-action movies should still show up after
+        POST denormalized_movies/_search
+        {
+          "sort": [
+            {
+              "rating.score": {
+                "order": "desc"
+              }
+            }
+          ],
+          "collapse": {
+            "field": "name.raw"
+          },
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "term": {
+                    "rating.genre": "action"
+                  }
+                }
+              ]
+            }
+          }
+        }
+        ********************************************************************************
+        Limitation of denormalization:
+            A product manager asks:
+                Return all movies that have at least one action rating,
+                but sort them by their highest rating overall, regardless of genre.
+
+            This is not possible as "Return all movies that have at least one action rating" will require us to filter by rating.genre: action,
+            which will exclude non-action ratings from the results.
+            As a result, we cannot sort by the highest rating overall, regardless of genre, because we have already filtered out non-action ratings.
+
+
+Nested vs parent-child tradeoffs
+    Nested → best for small related arrays
+    Parent–child → best for very large, frequently updated child datasets
+
+Debugging incorrect nested matches
+    1. Check mapping → is it nested?
+    2. Check query → wrapped in nested?
+    3. Check sorting → nested path specified?
+    4. Check aggregations → nested aggregation used?
+    5. Use inner_hits to see which object matched
