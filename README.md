@@ -76,7 +76,7 @@ This is the most important phase for building a search engine.
 
 ### Week 5–6: Scoring Fundamentals (BM25 Deep Understanding)
 
-- TF, IDF intuition
+- TF, IDF intuition ✅
 - BM25 scoring model
 - Field length normalization
 - Term saturation

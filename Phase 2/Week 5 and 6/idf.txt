@@ -1,0 +1,99 @@
+Inverse Document Frequency
+==========================
+
+IDF checks how rare is this word across the whole index?
+The rarer the word, the more important it becomes for ranking.
+
+Think of IDF like detective evidence.
+    If a clue appears everywhere, it’s not helpful. --> shoe prints
+    But if a clue is rare, it becomes powerful.  --> a rare fingerprint
+Search engines treat rare words like rare fingerprints.
+
+***********************************************************************
+The rule to remember
+    Memorize this:
+        TF measures how strongly a document talks about a term.
+        IDF measures how important that term is globally.
+BM25 combines both.
+    Score ≈ TF × IDF × length_normalization
+***********************************************************************
+
+IDF is calculated per shard, not globally.
+Example:
+    Shard1 → term appears in 5 docs
+    Shard2 → term appears in 50 docs
+Each shard computes its own IDF.
+Then results are merged.
+This is why sometimes ranking can look slightly unstable in distributed indexes.
+
+
+
+PUT idf_test
+{
+  "mappings": {
+    "dynamic":"strict",
+    "properties": {
+      "comment":{
+        "type": "text"
+      }
+    }
+  }
+}
+
+POST idf_test/_bulk
+{"index":{"_id": 1}}
+{"comment": "learning was easy"}
+{"index":{"_id": 2}}
+{"comment": "learning was simple"}
+{"index":{"_id": 3}}
+{"comment": "learning elastic was simple as learning java"}
+{"index":{"_id": 4}}
+{"comment": "learning elastic through chatgpt was easy"}
+
+//here the term "chatgpt" is rare and "learning" is common.
+//So the document with "chatgpt" will rank higher than the document with "learning" when we search for "learning elastic using chatgpt".
+
+POST idf_test/_search
+{
+  "query": {
+    "match": {
+      "comment": "learning elastic using chatgpt"
+    }
+  }
+}
+
+
+IDF(q)=log(((N - n(q) + 0.5) / (n(q) + 0.5)) +1)
+Where:
+    N = Total number of documents in the index
+    n(q) = Number of documents containing the term q
+
+    Example:
+        N = 4
+        n("chatgpt") = 1
+        n("elastic") = 2
+        n("learning") = 4
+    IDF("chatgpt") = log(((4 - 1 + 0.5) / (1 + 0.5)) +1) ≈ log(3.5/1.5 + 1) ≈ log(3.33) ≈ 1.20
+    IDF("elastic") = log(((4 - 2 + 0.5) / (2 + 0.5)) +1) ≈ log(2.5/2.5 + 1) ≈ log(2) ≈ 0.69
+    IDF("learning") = log(((4 - 4 + 0.5) / (4 + 0.5)) +1) ≈ log(0.5/4.5 + 1) ≈ log(1.11) ≈ 0.10
+
+    log will keep the IDF score in a reasonable range, preventing it from becoming too large for very rare terms.
+    The +1 in the formula ensures that we never divide by zero, and it also helps to smooth the IDF score for terms that appear in all documents.
+
+    example: IDF(chatgpt) without log will be 3.33, which is a very high score. With log, it becomes 1.20, which is more manageable and still reflects the rarity of the term.
+             The logarithm helps to dampen the effect of very rare terms, ensuring that they contribute to the relevance score without overwhelming it.
+             4-1+0.5) / (1+0.5) + 1 = 3.5/1.5 + 1 = 2.33 + 1 = 3.33
+             log(3.33) ≈ 1.20
+
+    The inside of the log is basically measuring:
+        How rare is this word in the index?
+    More precisely:
+            documents_without_term
+            --------------------------------
+            documents_with_term
+    So:
+        term frequency	ratio	meaning
+        rare word	    large	high importance
+        common word	    small	low importance
+
+    Then the log compresses the scale.

@@ -1,0 +1,46 @@
+  TermFrequency
+  =============
+    TermFrequency is the number of times a term appears in a document.
+    It is used in information retrieval and text mining to determine the relevance of a document to a search query.
+    The higher the term frequency, the more relevant the document is likely to be to the search query.
+    But!!, term frequency alone is not sufficient to determine the relevance of a document.
+    If the term appears frequently in a field in a lengthy text, it may not be as relevant as a document where the term appears less frequently but in a more concise text.
+
+        1 occurrence → big score boost
+        2 occurrences → smaller boost
+        3 occurrences → tiny boost
+        10 occurrences → almost no extra benefit
+
+    PUT term_frequency_test
+    {
+      "mappings": {
+        "dynamic":"strict",
+        "properties": {
+          "description":{
+            "type": "text"
+          }
+        }
+      }
+    }
+
+    POST term_frequency_test/_bulk
+    {"index":{"_id": 1001}}
+    {"description":"learning elastic search"}
+    {"index":{"_id": 1002}}
+    {"description":"learning elastic search using elastic tutorial"}
+    {"index":{"_id": 1003}}
+    {"description":"learning search using chatgpt ES tutorial. It gives a detailed 20 week plan on elastic search learning. We will have to spend atleast 2 hours a day to lean elastic search using this elastic seaarch tutorial."}
+
+    POST term_frequency_test/_search
+    {
+      "query": {
+        "match": {
+          "description": "elastic"
+        }
+      }
+    }
+
+    1002 -> First
+    1001 -> Second
+    1003 -> Third
+
