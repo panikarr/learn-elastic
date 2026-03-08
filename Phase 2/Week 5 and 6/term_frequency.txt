@@ -44,3 +44,17 @@
     1001 -> Second
     1003 -> Third
 
+    //See how the document with 2 occurrences of "elastic" (1002) ranks higher than the document with 1 occurrence (1001),
+    //and the document with 3 occurrences (1003) ranks lower than both because of the length of the text and the diminishing returns of term frequency.
+    POST term_frequency_test/explain/[1002/1003/1001]
+    {
+      "query": {
+        "match": {
+          "description": "elastic"
+        }
+      }
+    }
+
+
+  //refer BM25.txt for more details on how term frequency is calculated in BM25 and how it affects the relevance score of documents.
+

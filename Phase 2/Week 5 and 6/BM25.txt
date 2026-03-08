@@ -1,0 +1,48 @@
+Scoring Model
+=============
+
+    score(D, Q) = sum( idf(t) * (tf(t in D) * (k + 1)) /
+                    (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) )
+
+    where:
+        D = Document
+        Q = Query
+        t = Term in the query
+        tf(t in D) = Term Frequency of term t in document D
+        idf(t) = Inverse Document Frequency of term t
+        |D| = Length of document D
+        avgdl = Average document length in the index
+        k and b = Tuning parameters (default: k=1.2, b=0.75)
+
+Term Frequency Saturation
+========================
+    Term frequency saturation means:
+        The importance of a term increases when it appears more times, but the benefit gradually levels off.
+    In other words:
+        first few occurrences → very important
+        later occurrences → much less important
+
+    It is handles by fomula:
+        tf(t in D) * (k + 1) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) )
+
+
+
+Field length normalization
+==========================
+
+    The section 1 - b + b * (|D| / avgdl) is called length normalization.
+    It penalizes longer documents to prevent them from dominating the search results just because they have more terms.
+
+    Longer documents are more likely to contain the query terms just by chance.
+    To prevent this, BM25 includes a length normalization factor.
+    This factor reduces the score of longer documents, ensuring that shorter, more relevant documents are not overshadowed.
+
+    The length normalization factor is calculated as:
+        1 - b + b * (|D| / avgdl)
+    where:
+        |D| = Length of the document D
+        avgdl = Average document length in the index
+        b = Tuning parameter (default: 0.75)
+
+    The longer the document (|D|), the higher the length normalization factor, which reduces the overall score of the document.
+    This helps to ensure that shorter, more relevant documents are ranked higher than longer documents that may contain more terms but are less relevant to the query.
