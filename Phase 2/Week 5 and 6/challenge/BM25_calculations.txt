@@ -1,0 +1,183 @@
+//Calculate the BM25 scores for the following documents and query:
+
+PUT idf_test
+{
+  "mappings": {
+    "dynamic":"strict",
+    "properties": {
+      "comment":{
+        "type": "text"
+      }
+    }
+  }
+}
+
+POST idf_test/_bulk
+{"index":{"_id": 1}}
+{"comment": "learning was easy"}
+{"index":{"_id": 2}}
+{"comment": "learning was simple"}
+{"index":{"_id": 3}}
+{"comment": "learning elastic was simple as learning java"}
+{"index":{"_id": 4}}
+{"comment": "learning elastic through chatgpt was easy"}
+
+
+Query: "learning elastic using chatgpt"
+
+        score(D, Q) = sum( idf(t) * (tf(t in D) * (k + 1)) /
+                        (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) )
+
+        idf(t) = log((number of documents that does not contain term (t) + 0.5) / (number of documents that contain term (t) + 0.5) + 1)
+        e ≈ 2.71828 (natural logarithm
+        )
+        idf("learning")
+                   = log((((4-4)+0.5) / (4+0.5) )+1)
+                   = log((0.5/4.05)+1)
+                   = log(0.11 + 1)
+                   = log(1.11)
+                = 0.10
+
+                (tf("learning" in document 1) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("learning" in document 1) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 1.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.10 * (2.2 / 1.84) = 0.12
+
+                (tf("learning" in document 2) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("learning" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 1.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.10 * (2.2 / 1.84) = 0.12
+
+                (tf("learning" in document 3) * (k + 1))  =  2 * (1.2 + 1) = 4.4
+                (tf("learning" in document 4) + k * (1 - b + b * (|D| / avgdl)) ) = 2+(1.2 * (1 - 0.75 + 0.75(7/5))) = 3.56
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.10 * (4.4 / 3.56) = 0.12
+
+                (tf("learning" in document 4) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("learning" in document 4) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(6/5))) = 2.38
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.10 * (2.2 / 2.38) = 0.09
+
+
+        idf("elastic")
+                   = log(((4-2+0.5)/(2+0.5)) + 1)
+                   = log((2.05/2.05) + 1)
+                   = log(2)
+                = 0.69
+
+                (tf("elastic" in document 1) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("elastic" in document 1) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.69 * (0 / 0.84) = 0
+
+                (tf("elastic" in document 2) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("elastic" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (2.2 / 1.84) = 0
+
+                (tf("elastic" in document 2) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("elastic" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(7/5))) = 2.56
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.69 * (2.2 / 2.56) = 0.59
+
+                (tf("elastic" in document 4) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("elastic" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(6/5))) = 2.38
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.69 * (2.2 / 2.38) = 0.63
+
+        idf("using")
+                   N = 4
+                   n = 4
+                   = log(((N - n + 0.5) / (n + 0.5)) + 1)
+                   = log(((0+0.5)/(4+0.5))+1)
+                   = log((0.5+4.05) + 1)
+                   = log(1.11)
+                = 0.10
+
+                (tf("using" in document 1) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("using" in document 1) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.69 * (0 / 0.84) = 0
+
+                (tf("using" in document 2) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("using" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (2.2 / 1.84) = 0
+
+                (tf("using" in document 3) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("using" in document 3) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(7/5))) = 1.56
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (0 / 1.56) = 0
+
+                (tf("using" in document 4) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("using" in document 4) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(6/5))) = 1.38
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (0 / 1.38) = 0
+
+
+        idf("chatgpt")
+                   N = 4
+                   n = 1
+                   = log(((4-1+0.5)/(1+0.5)) + 1)
+                   = log(((3.5)/1.5) + 1)
+                   = log(3.33)
+                 = 1.20
+
+                (tf("chatgpt" in document 1) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("chatgpt" in document 1) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0.69 * (0 / 0.84) = 0
+
+                (tf("chatgpt" in document 2) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("chatgpt" in document 2) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(3/5))) = 0.84
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (2.2 / 1.84) = 0
+
+                (tf("chatgpt" in document 3) * (k + 1))  =  0 * (1.2 + 1) = 0
+                (tf("chatgpt" in document 3) + k * (1 - b + b * (|D| / avgdl)) ) = 0 + (1.2 * (1 - 0.75 + 0.75(7/5))) = 1.56
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 0 * (0 / 1.56) = 0
+
+                (tf("chatgpt" in document 4) * (k + 1))  =  1 * (1.2 + 1) = 2.2
+                (tf("chatgpt" in document 4) + k * (1 - b + b * (|D| / avgdl)) ) = 1 + (1.2 * (1 - 0.75 + 0.75(6/5))) = 2.38
+                idf(t) * (tf(t in D) * (k + 1)) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) = 1.20 * (2.2 / 2.38) = 1.11
+
+
+        score of query in doc 1: 0.12 + 0 + 0 + 0 = 0.12
+        score of query in doc 2: 0.12 + 0 + 0 + 0 = 0.12
+        score of query in doc 3: 0.12 + 0.59 + 0 + 0 = 0.71
+        score of query in doc 4: 0.09 + 0.63 + 0 + 1.11 = 1.83
+
+        response order should be  : 4 > 3 > 2/1
+
+
+        POST idf_test/_search
+        {
+          "query": {
+            "match": {
+              "comment": "learning elastic using chatgpt"
+            }
+          }
+        }
+
+
+              {
+                "_index": "idf_test",
+                "_id": "4",
+                "_score": 1.8078551,
+                "_source": {
+                  "comment": "learning elastic through chatgpt was easy"
+                }
+              },
+              {
+                "_index": "idf_test",
+                "_id": "3",
+                "_score": 0.7084718,
+                "_source": {
+                  "comment": "learning elastic was simple as learning java"
+                }
+              },
+              {
+                "_index": "idf_test",
+                "_id": "1",
+                "_score": 0.12405829,
+                "_source": {
+                  "comment": "learning was easy"
+                }
+              },
+              {
+                "_index": "idf_test",
+                "_id": "2",
+                "_score": 0.12405829,
+                "_source": {
+                  "comment": "learning was simple"
+                }
+              }
+
+
+

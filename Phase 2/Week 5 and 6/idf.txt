@@ -67,6 +67,10 @@ IDF(q)=log(((N - n(q) + 0.5) / (n(q) + 0.5)) +1)
 Where:
     N = Total number of documents in the index
     n(q) = Number of documents containing the term q
+    log exponential, e≈2.71828
+        because,
+            compresses large values smoothly
+            matches statistical derivations of BM25
 
     Example:
         N = 4
