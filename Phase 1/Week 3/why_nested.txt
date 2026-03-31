@@ -2,7 +2,7 @@ Non nested index does not preserve the boundaries of object. Look at how the "re
 how it got resolved with "nested" object.
 
 *************
-use "properties" to define nested object, now fields.
+use "properties" to define nested object, not fields.
 Keyword	    Purpose
 --------    ---------
 properties	Defines inner fields of an object or nested type
@@ -90,6 +90,21 @@ POST and_or_explosion/_search
     }
   }
 }
+
+Because fields are stored like below in document #203
+  "fields": {
+    "name": [
+      "Titanc"
+    ],
+    "reviews.rating": [
+      7,
+      4
+    ],
+    "reviews.comments": [
+      "good",
+      "not a thriller"
+    ]
+  }
 
 
 

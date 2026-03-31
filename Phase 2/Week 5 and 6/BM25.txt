@@ -22,7 +22,7 @@ Term Frequency Saturation
         first few occurrences → very important
         later occurrences → much less important
 
-    It is handles by fomula:
+    It is handled by formula:
         tf(t in D) * (k + 1) / (tf(t in D) + k * (1 - b + b * (|D| / avgdl)) )
 
 

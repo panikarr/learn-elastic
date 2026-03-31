@@ -53,7 +53,7 @@
         heavy memory usage
         can crash nodes
 
-    Instead use:
+    Instead, use:
         keyword fields with doc_values
 
 6️⃣ Default .keyword behavior

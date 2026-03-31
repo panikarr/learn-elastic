@@ -172,6 +172,27 @@ PUT /prices
     }
 }
 
+💡 Why use scaled_float?
+    1️⃣ Better performance 🚀
+    Integer operations are faster than floating-point operations
+    Less CPU overhead during aggregations
+    2️⃣ Less storage 🧱
+    Uses doc_values (columnar storage) efficiently
+    Takes less disk space than float/double
+    3️⃣ Predictable precision 🎯
+    No floating-point rounding surprises
+    You control precision via scaling_factor
+
+🎯 When SHOULD you use it?
+    Perfect for:
+    💰 Prices (e.g., £19.99)
+    ⭐ Ratings (e.g., 4.5)
+    📊 Percentages (e.g., 87.25%)
+❌ When NOT to use it?
+    Avoid when:
+        You need very high precision (scientific calculations)
+        Values vary wildly in decimal places
+
 
 5️⃣ Log Message
 Example:

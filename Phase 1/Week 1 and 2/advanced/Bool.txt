@@ -127,7 +127,7 @@ Think of it as a decision pipeline.
         Apple laptops score higher.
 
         Case B — NO must, NO filter
-        Then should becomes mandatory.
+        Then should become mandatory.
         Example:
         {
           "bool": {
@@ -143,7 +143,7 @@ Think of it as a decision pipeline.
             brand=apple OR brand=samsung
         Forcing should
             You can control: "minimum_should_match": 1
-        Now should becomes required even if must exists.
+        Now should become required even if must exist.
 
         *************************************************************
         * No must + no filter → minimum_should_match defaults to 1  *

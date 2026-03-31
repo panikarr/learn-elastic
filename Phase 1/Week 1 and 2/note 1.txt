@@ -17,9 +17,9 @@ The atomic unit
 Field
     How data is indexed and stored
     Field type controls:
-    how it’s searched
-    how it’s aggregated
-    how much memory it uses
+        how it’s searched
+        how it’s aggregated
+        how much memory it uses
 📌 Key rule
 If you misunderstand the field type, your query will silently lie to you.
 
@@ -67,7 +67,7 @@ Arrays of objects (DANGEROUS)
      ]
      If mapped normally, Elasticsearch flattens this internally.
      This query:
-     product = Laptop AND price = 20    ==> this can give results from 2 elements od the array
+     product = Laptop AND price = 20    ==> this can give results from 2 elements of the array
      ❌ CAN MATCH — incorrectly
 
 [Solution]nested — why it exists
