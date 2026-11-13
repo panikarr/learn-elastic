@@ -1,6 +1,40 @@
-# Elasticsearch 12-Week Mastery Roadmap (Including kNN / Vector Search)
+# Elasticsearch Mastery Roadmap (Including kNN / Vector Search)
 
 A senior-engineer-grade learning plan covering search fundamentals, aggregations, performance, operations, and modern vector search.
+
+---
+
+## Calendar at 1 hour/day (7 hours/week, every day)
+
+The "Week N" labels below are **topic units**, not calendar weeks. At 1 hour a day, one calendar week gives 7 hours, so most units take 1–2 calendar weeks.
+
+Assumptions: hours are my estimates for reading plus hands-on practice, only for **work not yet done** (✅ items are excluded). The schedule starts on 6 Nov 2026 and counts every day, weekends included. Running-project hours are folded into the Phase 4–6 rows.
+
+| Unit | Hours | Cumulative hours | Calendar week | Done by |
+|---|---|---|---|---|
+| Phase 1 revision (note 4 fixes, redo practicals) | 5 | 5 | 1 | 16 Nov 2026 |
+| Wk 5–6 remaining (phrase vs term, explain, profile…) | 10 | 15 | 3 | 26 Nov 2026 |
+| Wk 7–8 Multi-field ranking & boosting | 14 | 29 | 5 | 10 Dec 2026 |
+| Wk 9–10 Advanced ranking control | 14 | 43 | 7 | 24 Dec 2026 |
+| Phase 2.5 Lucene & distributed internals | 14 | 57 | 9 | 07 Jan 2027 |
+| Wk 11 Core aggregations | 7 | 64 | 10 | 14 Jan 2027 |
+| Wk 12 Nested aggregations | 7 | 71 | 11 | 21 Jan 2027 |
+| Wk 13 Pipeline aggregations | 5 | 76 | 11 | 21 Jan 2027 |
+| Wk 14 Indexing & ingest (+4h project) | 12 | 88 | 13 | 04 Feb 2027 |
+| Wk 15 Templates & mapping evolution (+3h project) | 10 | 98 | 14 | 11 Feb 2027 |
+| Wk 16 Performance internals (+3h project) | 13 | 111 | 16 | 25 Feb 2027 |
+| Wk 17 Vector search fundamentals | 7 | 118 | 17 | 04 Mar 2027 |
+| Wk 18 kNN queries | 6 | 124 | 18 | 11 Mar 2027 |
+| Wk 19 Hybrid search (+5h project) | 13 | 137 | 20 | 25 Mar 2027 |
+| Wk 20 Operations | 8 | 145 | 21 | 01 Apr 2027 |
+| Wk 21 Reliability | 8 | 153 | 22 | 08 Apr 2027 |
+| Wk 22 Capstone (+10h project) | 25 | 178 | 26 | 06 May 2027 |
+
+**Total remaining: about 178 hours, or 26 calendar weeks (about 6 months), finishing around 6 May 2027.**
+
+Milestones: scoring and ranking (Phase 2) done by 24 Dec 2026, internals by 7 Jan 2027, aggregations by 21 Jan 2027, indexing and architecture by 25 Feb 2027, vector search by 25 Mar 2027.
+
+Adjust the Hours column when you finish a unit and the dates are easy to recompute (cumulative hours ÷ 7, rounded up).
 
 ---
 
@@ -151,6 +185,40 @@ You can safely add business logic without breaking ranking.
 
 ---
 
+## Phase 2.5 – Lucene & Distributed Internals (new, ~2 weeks)
+
+Slot between Phase 2 and Phase 3 (week numbers below shift by 2 when you reach it).
+Goal: understand what Elasticsearch does *underneath* the query DSL, so slow or odd behaviour can be explained, not guessed.
+
+### Lucene internals
+- Inverted index: term dictionary, postings lists, positions
+- Segments: immutability, flush, merging
+- `doc_values` vs `fielddata` vs stored fields vs `_source`
+- Updates = delete + reindex; cost of deleted docs
+- How BM25 statistics (docFreq, avgFieldLength) come from segments
+
+### Write path & read path
+- Write path: coordinating node → primary → replicas, translog, refresh, flush, fsync
+- What "durable" and "searchable" actually mean
+- Read path: query-then-fetch, coordinating node, shard request cache
+- Why shard-local IDF changes scores (links to Week 5–6 shard-level scoring)
+
+### Cluster mechanics
+- Cluster state, master election, split-brain protection
+- Shard allocation, recovery, what happens when a node dies
+- `_cluster/allocation/explain`, `_cat/shards`, `_cat/segments`
+
+**Break-it exercises**
+- Kill a node and watch recovery
+- Fill a disk to the flood-stage watermark
+- Trigger a mapping explosion
+- Overload the bulk queue and read the rejections
+
+**Outcome**
+You can explain why a query is slow, why a score differs between shards, and what happens to your data when a node fails.
+
+---
+
 ## Phase 3 – Aggregations Mastery (Weeks 11–13)
 
 ### Week 11: Core Aggregations
@@ -245,6 +313,10 @@ You can safely add business logic without breaking ranking.
 - Failure scenarios
 - Recovery strategies
 - Monitoring search systems
+- Heap sizing and GC behaviour
+- Circuit breakers, thread pools, and rejections
+- Hot threads, slow logs, `_cat` APIs
+- Cluster allocation explain API
 
 ### Week 22: Capstone
 - Full search architecture design
@@ -253,3 +325,34 @@ You can safely add business logic without breaking ranking.
 - Hybrid search tuning
 - Real-world troubleshooting
 
+
+---
+
+## Running Project (build alongside Phase 4 onward)
+
+Product search over a dataset of about 1M docs. It forces the trade-offs that notes alone don't.
+
+- Mapping design: text vs keyword, multi-fields, nested where justified
+- Bulk ingest with an ingest pipeline
+- Autocomplete (edge n-gram or `search_as_you_type`)
+- Synonyms and analyzer tuning
+- Facets and aggregations
+- Ranking rules with `function_score` (popularity, recency, business rules)
+- Zero-downtime reindex using aliases and versioned indices
+- Relevance test suite: fixed queries with expected top results, run after every change
+- Hybrid BM25 + vector retrieval once Phase 5 is done
+
+---
+
+## Reading List
+
+- *Relevant Search* (Turnbull and Berryman): relevance engineering
+- *Lucene in Action*: index and scoring foundations
+- Elastic reference docs: mapping, analysis, search, and index/cluster settings pages, read end to end
+- *Designing Data-Intensive Applications* (Kleppmann): replication, partitioning, consensus
+- Source reading: Lucene `BM25Similarity`, Elasticsearch query builders
+
+## Working Habits
+
+- Predict hits and scores before running a query, then verify with `_explain`, `_profile`, and `_analyze`.
+- Break things on purpose and read the logs.

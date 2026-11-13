@@ -356,4 +356,223 @@
         Synonyms must match processed tokens.
 
 
+    🧠 synonym vs synonym_graph (multi-word synonyms)
+
+        For single words (laptop = notebook) both filters behave the same.
+        The difference appears with MULTI-WORD synonyms:
+
+            ny = new york
+
+        Search for "ny" should match:
+            docs containing "ny"
+            docs containing "new york" (both words together)
+
+        ❌ synonym (flat)
+            Output is a flat list of tokens.
+            It does not record that "ny" is a complete alternative to "new york".
+            Query becomes:  (ny or new) AND york
+            A doc that only has "ny" is MISSED.
+
+        ✅ synonym_graph
+            Output is a token graph (alternative paths).
+            Query becomes:  ny OR (new AND york)
+            Both kinds of docs are found.
+
+        Rule:
+            Search time  → synonym_graph
+            Index time   → synonym (Lucene cannot index a graph; or use synonym_graph + flatten_graph)
+
+        Setup:
+            PUT synm_test
+            {
+              "settings": {
+                "analysis": {
+                  "filter": {
+                    "syn_flat": {
+                      "type": "synonym",
+                      "synonyms": ["ny, new york"]
+                    },
+                    "syn_graph": {
+                      "type": "synonym_graph",
+                      "synonyms": ["ny, new york"]
+                    }
+                  },
+                  "analyzer": {
+                    "analyser_flat": {
+                      "tokenizer": "standard",
+                      "filter": ["syn_flat"]
+                    },
+                    "analyser_graph": {
+                      "tokenizer": "standard",
+                      "filter": ["syn_graph"]
+                    }
+                  }
+                }
+              },
+              "mappings": {
+                "properties": {
+                  "data": { "type": "text" }
+                }
+              }
+            }
+
+            POST synm_test/_bulk
+            {"index": {"_id": 1}}
+            {"data": "best pizza in ny"}
+            {"index": {"_id": 2}}
+            {"data": "visit new york city"}
+
+        Note: documents are indexed with the standard analyzer only.
+        The synonym analyzers are applied at query time (analyzer override in the query).
+
+        Step 1: analyze "ny" with the flat analyzer
+            Request:
+                POST synm_test/_analyze
+                {
+                    "text": "ny",
+                    "analyzer": "analyser_flat"
+                }
+            Response:
+                {
+                  "tokens": [
+                    {
+                      "token": "ny",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "<ALPHANUM>",
+                      "position": 0
+                    },
+                    {
+                      "token": "new",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "SYNONYM",
+                      "position": 0
+                    },
+                    {
+                      "token": "york",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "SYNONYM",
+                      "position": 1
+                    }
+                  ]
+                }
+
+        Step 2: analyze "ny" with the graph analyzer
+            Request:
+                POST synm_test/_analyze
+                {
+                    "text": "ny",
+                    "analyzer": "analyser_graph"
+                }
+            Response:
+                {
+                  "tokens": [
+                    {
+                      "token": "new",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "SYNONYM",
+                      "position": 0
+                    },
+                    {
+                      "token": "ny",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "<ALPHANUM>",
+                      "position": 0,
+                      "positionLength": 2
+                    },
+                    {
+                      "token": "york",
+                      "start_offset": 0,
+                      "end_offset": 2,
+                      "type": "SYNONYM",
+                      "position": 1
+                    }
+                  ]
+                }
+
+        🧠 Why positionLength is important
+
+            Same 3 tokens, same positions. The ONLY difference is one line:
+                "positionLength": 2   (on "ny")
+
+            positionLength = how many positions a token covers.
+            Default is 1.
+
+            Here "ny" covers positions 0 and 1 → the same span as "new" + "york".
+            That tells Elasticsearch there are 2 alternative paths:
+
+                path A:  ny
+                path B:  new → york
+
+            Without positionLength (flat):
+                "ny" is assumed to cover only position 0.
+                Elasticsearch sees: position 0 = (ny or new), position 1 = york
+                "ny" is no longer a complete alternative, so a query built from
+                this stream needs "york" as well.
+
+            With positionLength (graph):
+                Elasticsearch builds one query per path:  ny OR (new AND york)
+
+            Also matters for phrase queries:
+                the span decides which tokens must sit next to each other.
+
+        Step 3: search "ny" with operator "and" (flat)
+            Request:
+                POST synm_test/_search
+                {
+                    "query": {
+                        "match": {
+                          "data": {"query": "ny", "analyzer": "analyser_flat", "operator": "and"}
+                        }
+                    }
+                }
+            Response (trimmed):
+                total hits: 1
+                    _id 2  "visit new york city"   _score 1.3862942
+
+            Doc 1 "best pizza in ny" is MISSED.
+            Query was (ny or new) AND york, and doc 1 has no "york".
+
+        Step 4: search "ny" with operator "and" (graph)
+            Request:
+                POST synm_test/_search
+                {
+                    "query": {
+                        "match": {
+                          "data": {"query": "ny", "analyzer": "analyser_graph", "operator": "and"}
+                        }
+                    }
+                }
+            Response (trimmed):
+                total hits: 2
+                    _id 2  "visit new york city"   _score 1.3862942
+                    _id 1  "best pizza in ny"      _score 0.6931471
+
+            Both docs found.
+            Doc 2 ranks higher: it matches two terms (new, york). Doc 1 matches one (ny).
+
+        🧠 Why operator "and" is needed in this test
+
+            operator decides how the query tokens are combined:
+                or  (default) → doc matches if ANY token is present
+                and           → doc must contain ALL tokens of a path
+
+            With the default "or", the flat query is: ny OR new OR york.
+            Doc 1 still matches on "ny" alone, so flat and graph look the same
+            and the problem is hidden.
+            "and" (or match_phrase) forces Elasticsearch to respect how the
+            tokens are grouped. That is where flat breaks.
+
+        🧠 Debugging lesson from this exercise
+
+            A query on a field that does not exist returns 0 hits and NO error.
+            If a search returns nothing:
+                1. match_all → do the docs exist?
+                2. compare the field name in the query with _source / _mapping
+                3. only then look at analyzers
+
 lazy to learn custom filters :) . Let's do that later.

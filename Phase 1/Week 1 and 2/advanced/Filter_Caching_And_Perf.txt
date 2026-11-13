@@ -6,6 +6,8 @@
     and only secondarily on:
         query cache
     🧠 Filter Cache (Most Important)
+        Real name: node query cache (the stats API calls it query_cache).
+        "Filter cache" and "query cache" are the SAME cache, not two tiers.
         What it caches?
             Elasticsearch caches bitsets per segment representing: “Which documents match this filter?”
             Example filter: status = ACTIVE
@@ -15,6 +17,15 @@
                 doc2 → false
                 doc3 → true
             This is reused across many queries.
+
+        How it behaves (observed in the practical section below)
+            Cached per clause, per segment (not per whole query)
+            Key = the exact clause: range 100-500 and range 600-900 are different entries
+            NOT cached on first use. Only after repeated use
+                observed: entry created on the 5th use, first hit on the 6th
+            term filter on a keyword is never cached (Lucene treats it as cheap)
+            Stats count clause lookups, not searches (2 filter clauses = 2 lookups per search)
+            Size example: bitset for a 30,000 doc segment = 4,904 bytes
 
         Where filter cache is used
             Only in:
@@ -34,11 +45,17 @@
         constantly changing values
 
     Reason:
-        Bitset becomes invalid immediately.
+        The clause value changes on every request, so the cache key never repeats.
+        The bitset is never reused (the clause never reaches the repeated use needed to be cached)
+        and any cached entries just sit in memory until LRU eviction.
+        Tip (to verify): round now, e.g. now/d, so the clause repeats.
         Segment-level nuance
 
     Cache is built per segment.
-    Frequent indexing → new segments → cache rebuilt.
+    Frequent indexing → new segments start with an empty cache.
+    Old segments keep their entries (observed: still a hit after a refresh added a new segment).
+    Small segments are never cached (ES docs: needs >= 10k docs and >= 3% of the shard;
+    observed: a 1 doc segment never got an entry).
 
 
     Execution order with caching
@@ -53,6 +70,9 @@
         → improves performance
 
     🧠 Query Cache (Secondary)
+        NOTE (from ES docs, to verify): there is no separate cache for "full query result per segment".
+        The node query cache IS the filter cache above. The closest thing to full-result
+        caching is the request cache below (per shard, not per segment).
         What it caches?
             full query result for a segment
         Only used when:
@@ -77,3 +97,141 @@
         Filter cache → critical for search APIs
         Query cache  → useful for dashboards
         Request cache → useful for aggregations
+
+
+🔹 Practical: Node Query Cache (filter cache) experiments
+    Env: single node ES in docker. Replace <password> with the elastic password from docker-compose.yml
+    Why 1 shard + 30k docs: a segment is only cache-eligible with >= 10k docs AND >= 3% of the shard (ES docs).
+    Why "size": 1 in every search: size 0 would be answered by the request cache on repeats
+    and never reach the query cache.
+
+//Setup
+DELETE cache_lab
+
+PUT cache_lab
+{
+  "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+  "mappings": {
+    "properties": {
+      "status":   { "type": "keyword" },
+      "price":    { "type": "integer" },
+      "category": { "type": "keyword" }
+    }
+  }
+}
+
+//terminal (not Dev Tools): load 30k docs
+python3 -c '
+import json,random
+for i in range(30000):
+    print(json.dumps({"index":{}}))
+    print(json.dumps({"status":random.choice(["ACTIVE","INACTIVE","PENDING"]),"price":random.randint(1,1000),"category":"c%d"%random.randint(1,20)}))
+' | curl -s -u elastic:<password> -H 'Content-Type: application/x-ndjson' -XPOST 'localhost:9200/cache_lab/_bulk?refresh=true' --data-binary @-
+
+//merge to 1 segment and check
+POST cache_lab/_forcemerge?max_num_segments=1
+
+GET _cat/segments/cache_lab?v&h=segment,docs.count,size
+//expect: one segment with 30000 docs
+
+//stats helper - run before and after every search
+GET cache_lab/_stats/query_cache?filter_path=_all.primaries.query_cache
+
+
+//Experiment 1: a filter is cached only after repeated use
+//run it one at a time, check stats after each run
+GET cache_lab/_search
+{
+  "size": 1,
+  "query": {
+    "bool": {
+      "filter": [
+        { "range": { "price": { "gte": 100, "lte": 500 } } },
+        { "term":  { "status": "ACTIVE" } }
+      ]
+    }
+  }
+}
+
+    Observed (cold node right after docker restart):
+        baseline : total=0  hit=0  miss=0   cache_count=0
+        run 1    : total=2  hit=0  miss=2   cache_count=0
+        run 2    : total=4  hit=0  miss=4   cache_count=0
+        run 3    : total=6  hit=0  miss=6   cache_count=0
+        run 4    : total=8  hit=0  miss=8   cache_count=0
+        run 5    : total=10 hit=0  miss=10  cache_count=1  cache_size=1  memory=4904 bytes
+        run 6    : total=12 hit=1  miss=11  cache_count=1
+    Each run = 2 lookups (range + term). Entry appears on the 5th use, first hit on the 6th.
+
+
+//Experiment 2: which clause is the cached one? run each once, stats before/after
+//range only
+GET cache_lab/_search
+{
+  "size": 1,
+  "query": { "bool": { "filter": [ { "range": { "price": { "gte": 100, "lte": 500 } } } ] } }
+}
+
+//term only
+GET cache_lab/_search
+{
+  "size": 1,
+  "query": { "bool": { "filter": [ { "term": { "status": "ACTIVE" } } ] } }
+}
+
+    Observed:
+        before          : total=12 hit=1 miss=11 cache_count=1
+        after range only: total=13 hit=2 miss=11 cache_count=1   (+1 hit)
+        after term only : total=14 hit=2 miss=12 cache_count=1   (+1 miss, never cached)
+    Range is the cached filter. term was used 7 times and never got an entry.
+
+
+//Experiment 3: different bounds = different cache key
+GET cache_lab/_search
+{
+  "size": 1,
+  "query": { "bool": { "filter": [ { "range": { "price": { "gte": 600, "lte": 900 } } } ] } }
+}
+
+    Observed (run once):
+        before: total=14 hit=2 miss=12 cache_size=1
+        after : total=15 hit=2 miss=13 cache_size=1   (+1 miss, existing entry did not help)
+    This is why now-5m style ranges are bad cache candidates: the clause never repeats.
+    Not run yet: repeating the 600-900 range 5 times, expected to create a 2nd entry.
+
+
+//Experiment 4: a refresh that adds a new segment does not invalidate the old entry
+POST cache_lab/_doc?refresh=true
+{ "status": "ACTIVE", "price": 250, "category": "c1" }
+
+GET _cat/segments/cache_lab?v&h=segment,docs.count
+//then run the Experiment 1 search again
+
+    Observed:
+        segments: _0 = 30000 docs, _1 = 1 doc
+        before: total=15 hit=2  miss=13 cache_size=1 memory=4904
+        after : total=16 hit=3  miss=13 cache_size=1 memory=4904   (+1 hit, entry survived)
+        after ~10 more runs: total=37 hit=13 miss=24 cache_count=1 (the 1 doc segment never got an entry)
+    Lookup counts per search were not constant across segment layouts (first search after the
+    refresh added only 1 lookup). Rely on the hit/miss pattern and cache_count, not exact totals.
+
+
+    Key takeaways (observed)
+        Filter cache = node query cache, stats at _stats/query_cache
+        One entry = one clause bitset for one segment (4904 bytes for 30k docs)
+        Cached only after repeated use (5th use in this test)
+        term filter is never cached
+        Different clause values = different entries
+        Refresh adding a segment does not invalidate older segments' entries
+        Tiny segments are never cached
+
+    Still to verify (not tested yet, treat as unconfirmed)
+        must / should clauses are never cached (filter vs must test)
+        deletes and updates do not invalidate an entry, a segment merge does
+        second entry for another range after 5 uses
+        rounding now (now/d) makes a date range cacheable
+        request cache: size 0 by default, ?request_cache= override, cleared on refresh,
+            skipped for now / profile / scroll
+        "Execution order with caching" above is probably wrong: Lucene intersects clauses
+            cheapest-first rather than running must_not, filter, must, should in order
+        limits from ES docs, not measured: node query cache 10% of heap, request cache 1% of heap

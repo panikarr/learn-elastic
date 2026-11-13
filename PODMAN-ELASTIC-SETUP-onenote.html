@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Elasticsearch + Kibana on Podman (Zscaler)</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #222; }
+  h1 { font-size: 20pt; color: #1f4e79; }
+  h2 { font-size: 15pt; color: #2e75b6; margin-top: 18pt; }
+  h3 { font-size: 12pt; color: #1f4e79; margin-top: 12pt; }
+  pre { font-family: Consolas, Menlo, monospace; font-size: 10pt; background: #f2f2f2; border: 1px solid #d0d0d0; padding: 6pt; }
+  code { font-family: Consolas, Menlo, monospace; font-size: 10pt; background: #f2f2f2; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #999; padding: 4pt 8pt; vertical-align: top; }
+  th { background: #deeaf6; text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>Elasticsearch + Kibana (docker-compose) on Podman, behind Zscaler</h1>
+<p>Setup that worked on my Mac (Docker Desktop removed, Podman used instead).<br>
+Compose project: <code>~/Documents/EAGLE/POC-LEARNING/ELASTIC 9</code> (Elasticsearch / Kibana 9.2.4).<br>
+Reference: <a href="https://elsevier.atlassian.net/wiki/x/_ID0RMds">Confluence – Fixing Podman/BuildKit TLS Certificate Errors on Corporate Network (Zscaler)</a></p>
+
+<h2>Problems hit, in order</h2>
+<table>
+  <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+  <tr><td><code>Cannot connect to the Docker daemon at ...docker.sock</code></td><td>Docker Desktop no longer installed</td><td>Use Podman (steps 1–3)</td></tr>
+  <tr><td><code>exec: "docker-credential-desktop": executable file not found</code></td><td><code>~/.docker/config.json</code> still had <code>"credsStore": "desktop"</code></td><td>Step 4</td></tr>
+  <tr><td><code>error saving credentials ... docker-credential-desktop</code> (during <code>docker login</code>)</td><td>Same <code>credsStore</code> line</td><td>Step 4, then step 5</td></tr>
+  <tr><td><code>x509: certificate signed by unknown authority</code></td><td>Zscaler re-signs HTTPS; the Podman VM did not trust its root CA</td><td>Step 6</td></tr>
+  <tr><td><code>Elasticsearch died ... exit code 137</code></td><td>Podman VM had only 2 GiB RAM, so it was out-of-memory killed</td><td>Step 7</td></tr>
+  <tr><td>Kibana: <code>unable to authenticate user [kibana_system]</code></td><td><code>kibana_system</code> password never set in Elasticsearch</td><td>Step 9</td></tr>
+</table>
+
+<h2>Steps</h2>
+
+<h3>1. Install the Podman engine</h3>
+<p>Podman Desktop alone does not include the <code>podman</code> CLI.</p>
+<pre>brew install podman</pre>
+
+<h3>2. Create the Podman VM</h3>
+<pre>podman machine init</pre>
+
+<h3>3. Point the docker CLI at Podman</h3>
+<pre>docker context create podman --docker "host=unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+docker context use podman</pre>
+<p>docker-compose from Homebrew then works unchanged.</p>
+
+<h3>4. Remove the dead Docker Desktop credential helper</h3>
+<p>Back up, then delete the <code>"credsStore": "desktop",</code> line from <code>~/.docker/config.json</code>:</p>
+<pre>cp ~/.docker/config.json ~/.docker/config.json.bak
+sed -i '' '/"credsStore": "desktop",/d' ~/.docker/config.json</pre>
+
+<h3>5. Log in to Artifactory (docker login)</h3>
+<p>Do this <b>after step 4</b>; before that, login fails with <code>error saving credentials ... docker-credential-desktop: executable file not found</code>.</p>
+<pre>docker login docker-remote.rt.artifactory.tio.systems
+docker login docker-knowledge-discovery-release-local.rt.artifactory.tio.systems</pre>
+<ul>
+  <li>Username: your Artifactory username.</li>
+  <li>Password: an Artifactory API / identity token (not your SSO password).</li>
+  <li>Expect <code>Login Succeeded</code> for each registry.</li>
+  <li>With no credential helper, the login is saved base64-encoded in <code>~/.docker/config.json</code> under <code>auths</code>. Treat that file as secret and keep it out of git. If the <code>docker-remote</code> entry is still <code>{}</code> afterwards, the login did not save; run it again.</li>
+  <li>To pull through Artifactory, prefix the <code>image:</code> lines in the compose file with the registry host. Check the path with <code>docker pull &lt;registry&gt;/&lt;image&gt;:&lt;tag&gt;</code> first (Artifactory UI &rarr; "Set Me Up" shows the exact path).</li>
+  <li>Only needed for Artifactory images. The public Elastic images pull without a login once step 6 is done.</li>
+</ul>
+
+<h3>6. Make the VM trust Zscaler (corporate CA)</h3>
+<pre>podman machine stop podman-machine-default
+podman machine set --import-native-ca=true podman-machine-default
+podman machine start podman-machine-default</pre>
+<p>The BuildKit / buildx section of the Confluence page is only needed for <code>docker compose build</code> (Dockerfiles with <code>ADD https://...</code>). Plain image pulls don't need it.</p>
+
+<h3>7. Give the VM enough memory</h3>
+<pre>podman machine stop podman-machine-default
+podman machine set --memory 6144 podman-machine-default
+podman machine start podman-machine-default</pre>
+<p>2 GiB was too little: Elasticsearch has a 1 GiB heap plus off-heap needs.</p>
+
+<h3>8. Start the stack</h3>
+<pre>cd ~/"Documents/EAGLE/POC-LEARNING/ELASTIC 9"
+docker-compose down      # clears failed containers from earlier attempts
+docker-compose up -d</pre>
+<p>Check: <code>curl -u elastic:&lt;elastic-password&gt; http://localhost:9200</code></p>
+
+<h3>9. Set the kibana_system password (first run only)</h3>
+<p>Kibana connects as <code>kibana_system</code>. Its password is only in the compose file, not in Elasticsearch, until you do this:</p>
+<pre>curl -u elastic:&lt;elastic-password&gt; -X POST -H 'Content-Type: application/json' \
+  http://localhost:9200/_security/user/kibana_system/_password \
+  -d '{"password":"&lt;kibana_system-password-from-compose&gt;"}'
+docker restart kibana</pre>
+<p>Kibana is then at <b>http://localhost:5601</b>. Log in as <code>elastic</code>, not <code>kibana_system</code>.</p>
+
+<h2>Day-to-day</h2>
+<ul>
+  <li>Start the VM if stopped: <code>podman machine start</code></li>
+  <li>Start the stack: <code>docker-compose up -d</code> (in the compose folder)</li>
+  <li>Stop the stack: <code>docker-compose down</code> (data stays in the <code>es_data</code> volume)</li>
+  <li><code>docker-compose down -v</code> deletes the volumes, so redo step 9 afterwards</li>
+</ul>
+
+<h2>Notes</h2>
+<ul>
+  <li>If Elasticsearch complains about <code>vm.max_map_count</code>: <code>podman machine ssh "sudo sysctl -w vm.max_map_count=262144"</code> (lost on VM restart).</li>
+  <li>Harmless Kibana warnings: Fleet "encrypted saved object key required" (only matters if you use Fleet; set <code>XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY</code> to 32+ random characters) and a telemetry certificate error (Zscaler).</li>
+  <li>Pulling through Artifactory is optional; see step 5 (<code>docker login</code>) and prefix the <code>image:</code> lines in the compose file with the registry host. Not needed for the public Elastic images once step 6 is done.</li>
+  <li><code>docker-compose.yml</code> contains plaintext passwords. Keep it out of git or move them to an untracked <code>.env</code>. The <code>version:</code> line is obsolete and can be deleted to silence the warning.</li>
+</ul>
+
+</body>
+</html>
